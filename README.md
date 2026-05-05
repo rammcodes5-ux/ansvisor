@@ -1,6 +1,25 @@
+<div align="center">
+
+[![Ansvisor Banner](https://cdn.prod.website-files.com/69e606308fb6f96fb911b251/69f0a8f250aa69dd7f6d9a30_s12.svg)](https://ansvisor.com)
+
+[![🚀 Try the Cloud — ansvisor.com](https://img.shields.io/badge/🚀_Try_the_Cloud-ansvisor.com-6366f1?style=for-the-badge&logoColor=white&logo=vercel)](https://ansvisor.com)
+[![📚 Docs](https://img.shields.io/badge/📚_Docs-ansvisor.com%2Fdocs-10b981?style=for-the-badge&logoColor=white&logo=readthedocs)](https://ansvisor.com/docs)
+
+[![Star on GitHub](https://img.shields.io/github/stars/aeohub/ansvisor?style=for-the-badge&logo=github&color=gold)](https://github.com/aeohub/ansvisor)
+[![MIT License](https://img.shields.io/badge/License-MIT-yellow?style=for-the-badge)](https://opensource.org/licenses/MIT)
+[![Claude Code](https://img.shields.io/badge/Built%20with-Claude%20Code-green?style=for-the-badge&logo=anthropic)](https://claude.com/claude-code)
+
 # Ansvisor
 
-Open source AI Engine Optimization (AEO) platform. Monitor your brand's visibility across AI search engines, track competitors, and get content optimization suggestions.
+**Open-source Answer Engine Optimization platform**
+
+</div>
+
+Track how your brand appears in answers from ChatGPT, Gemini, Perplexity, Claude, and Copilot. Ansvisor turns AI search into a measurable channel — visibility scores, competitor benchmarks, content optimization briefs, and AI-referral analytics in one self-hostable platform.
+
+### Why Ansvisor?
+
+> AI search is replacing the traditional click. When ChatGPT recommends a product, no Google ranking saves you. Ansvisor measures what classical SEO can't see — how often AI engines name your brand, which competitors get cited instead, and which prompts move the needle. Self-host it for free, or use the managed cloud at [ansvisor.com](https://ansvisor.com).
 
 ## Features
 
