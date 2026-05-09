@@ -6,6 +6,13 @@
     "dark": "/logo/dark.svg"
   },
   "favicon": "/favicon.svg",
+  "metadata": {
+    "og:title": "Ansvisor Docs",
+    "og:description": "Open-source Answer Engine Optimization platform — track ChatGPT, Gemini, Perplexity, Claude, Copilot brand mentions.",
+    "og:image": "https://app.ansvisor.com/opengraph-image",
+    "twitter:card": "summary_large_image",
+    "twitter:image": "https://app.ansvisor.com/opengraph-image"
+  },
   "colors": {
     "primary": "#6366f1",
     "light": "#a5b4fc",

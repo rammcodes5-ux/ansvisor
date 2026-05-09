@@ -24,12 +24,29 @@ const jakarta = Plus_Jakarta_Sans({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(
+    process.env.NEXT_PUBLIC_APP_URL || "https://app.ansvisor.com",
+  ),
   title: {
     default: "Ansvisor",
     template: "%s | Ansvisor",
   },
   description:
     "Monitor, analyze, and optimize your brand's visibility in AI-powered search engines.",
+  openGraph: {
+    title: "Ansvisor",
+    description:
+      "Track how AI search engines mention your brand — ChatGPT, Gemini, Perplexity, Claude, Copilot.",
+    url: "/",
+    siteName: "Ansvisor",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Ansvisor",
+    description:
+      "Track how AI search engines mention your brand — ChatGPT, Gemini, Perplexity, Claude, Copilot.",
+  },
   // The product app at app.ansvisor.com should not appear in search results;
   // ansvisor.com (the Webflow marketing site) is the indexable surface.
   robots: {
