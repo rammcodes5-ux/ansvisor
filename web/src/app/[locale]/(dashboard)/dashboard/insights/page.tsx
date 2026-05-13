@@ -769,17 +769,31 @@ function FilterBar({
           onValueChange={(v) => set({ model: !v || v === '__all__' ? '' : v })}
         >
           <SelectTrigger className="h-8 w-44 text-xs">
-            <SelectValue placeholder="All Platforms" />
+            <SelectValue placeholder="All Platforms">
+              {(value) => {
+                if (!value || value === '__all__') return 'All Platforms';
+                const firstSlug = String(value).split(',')[0];
+                return (
+                  MODEL_DISPLAY_NAME[firstSlug] ??
+                  PLATFORM_LABELS[firstSlug] ??
+                  getAIProviderDisplayName(resolveAIProvider(firstSlug))
+                );
+              }}
+            </SelectValue>
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="__all__">All Platforms</SelectItem>
-            {availableModels.map((m) => (
-              <SelectItem key={m} value={m}>
-                {MODEL_DISPLAY_NAME[m] ??
-                  PLATFORM_LABELS[m] ??
-                  getAIProviderDisplayName(resolveAIProvider(m))}
-              </SelectItem>
-            ))}
+            {availableModels.map((m) => {
+              // m is a comma-separated slug list representing a provider family
+              const firstSlug = m.split(',')[0];
+              return (
+                <SelectItem key={m} value={m}>
+                  {MODEL_DISPLAY_NAME[firstSlug] ??
+                    PLATFORM_LABELS[firstSlug] ??
+                    getAIProviderDisplayName(resolveAIProvider(firstSlug))}
+                </SelectItem>
+              );
+            })}
           </SelectContent>
         </Select>
       </div>
@@ -1423,13 +1437,29 @@ export default function InsightsPage() {
               .filter(Boolean) as string[],
           ),
         ].sort();
-        const models = [
-          ...new Set(
-            resultsData.results
-              .map((r) => r.modelUsed)
-              .filter(Boolean) as string[],
-          ),
-        ].sort();
+        // Group raw model slugs by their resolved display name so different
+        // ChatGPT versions ("gpt-5-3-mini" + "gpt-5-5") collapse into one
+        // "ChatGPT" filter option. Stored as `slugA,slugB` so the server can
+        // filter the whole family with .in() via applyModelFilter().
+        const slugToLabel = new Map<string, string>();
+        for (const r of resultsData.results) {
+          const slug = r.modelUsed;
+          if (!slug || slugToLabel.has(slug)) continue;
+          const label =
+            MODEL_DISPLAY_NAME[slug] ??
+            PLATFORM_LABELS[slug] ??
+            getAIProviderDisplayName(resolveAIProvider(slug));
+          slugToLabel.set(slug, label);
+        }
+        const familyToSlugs = new Map<string, string[]>();
+        for (const [slug, label] of slugToLabel) {
+          const arr = familyToSlugs.get(label) ?? [];
+          arr.push(slug);
+          familyToSlugs.set(label, arr);
+        }
+        const models = Array.from(familyToSlugs.values())
+          .map((slugs) => slugs.sort().join(','))
+          .sort();
         setAvailableRegions((prev) =>
           [...new Set([...prev, ...regions])].sort((a, b) =>
             a.localeCompare(b),
