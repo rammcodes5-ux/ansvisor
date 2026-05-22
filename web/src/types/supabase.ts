@@ -631,6 +631,8 @@ export type Database = {
       prompt_volumes: {
         Row: {
           ai_volume_multiplier: number;
+          competition: string | null;
+          competition_index: number | null;
           created_at: string | null;
           est_ai_volume: number;
           fetched_at: string | null;
@@ -645,6 +647,8 @@ export type Database = {
         };
         Insert: {
           ai_volume_multiplier: number;
+          competition?: string | null;
+          competition_index?: number | null;
           created_at?: string | null;
           est_ai_volume: number;
           fetched_at?: string | null;
@@ -659,6 +663,8 @@ export type Database = {
         };
         Update: {
           ai_volume_multiplier?: number;
+          competition?: string | null;
+          competition_index?: number | null;
           created_at?: string | null;
           est_ai_volume?: number;
           fetched_at?: string | null;

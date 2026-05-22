@@ -90,11 +90,16 @@ async function testFullPipeline() {
     });
 
     console.log('\nGoogle Volumes:');
-    for (const [kw, vol] of Object.entries(volumes)) {
-      console.log(`  "${kw}": ${vol.toLocaleString()}/mo`);
+    for (const [kw, data] of Object.entries(volumes)) {
+      console.log(
+        `  "${kw}": ${data.volume.toLocaleString()}/mo (competition: ${data.competition ?? 'n/a'})`,
+      );
     }
 
-    const totalGoogleVolume = Object.values(volumes).reduce((sum, v) => sum + v, 0);
+    const totalGoogleVolume = Object.values(volumes).reduce(
+      (sum, v) => sum + v.volume,
+      0,
+    );
     const estAiVolume = Math.round(totalGoogleVolume * AI_VOLUME_MULTIPLIER);
 
     console.log(`\nTotal Google Volume: ${totalGoogleVolume.toLocaleString()}/mo`);

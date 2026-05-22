@@ -161,6 +161,8 @@ export interface PromptVolume {
   totalGoogleVolume: number;
   aiVolumeMultiplier: number;
   estAiVolume: number;
+  competitionIndex: number | null;
+  competition: 'LOW' | 'MEDIUM' | 'HIGH' | null;
   locationCode?: number;
   languageCode?: string;
   fetchedAt: string;

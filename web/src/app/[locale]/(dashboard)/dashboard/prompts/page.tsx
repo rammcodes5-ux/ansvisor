@@ -19,6 +19,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { CompetitionBars } from '@/components/ui/competition-bars';
 import {
   TrendingUp,
   Search,
@@ -991,6 +992,12 @@ function AllPromptsTab({
               >
                 Volume
               </ColHead>
+              <ColHead
+                className="text-center"
+                tooltip="Based on Google Ads competition for related keywords (LOW / MEDIUM / HIGH). A proxy for topic difficulty."
+              >
+                Competition
+              </ColHead>
               <ColHead className="text-right" tooltip="Most recent tracking run for this prompt.">
                 Last run
               </ColHead>
@@ -1069,6 +1076,14 @@ function AllPromptsTab({
                     ) : (
                       <span className="text-xs text-muted-foreground">—</span>
                     )}
+                  </TableCell>
+                  <TableCell className="text-center">
+                    <div className="flex justify-center">
+                      <CompetitionBars
+                        index={vol?.competitionIndex ?? null}
+                        label={vol?.competition ?? null}
+                      />
+                    </div>
                   </TableCell>
                   <TableCell className="text-right text-xs text-muted-foreground">
                     {formatRelative(vis?.lastRunAt)}

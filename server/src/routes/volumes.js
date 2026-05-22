@@ -74,6 +74,8 @@ function mapVolumeRow(saved) {
     totalGoogleVolume: saved.total_google_volume,
     aiVolumeMultiplier: parseFloat(saved.ai_volume_multiplier),
     estAiVolume: saved.est_ai_volume,
+    competitionIndex: saved.competition_index ?? null,
+    competition: saved.competition ?? null,
     locationCode: saved.location_code,
     languageCode: saved.language_code,
     fetchedAt: saved.fetched_at,
@@ -92,10 +94,34 @@ async function fetchAndSaveVolumes(
     languageCode: languageCode || undefined,
   });
 
-  const totalGoogleVolume = Object.values(volumes).reduce(
-    (sum, v) => sum + v,
-    0,
-  );
+  // google_volumes stays a { keyword: number } map for the UI. Competition is
+  // aggregated per prompt as a volume-weighted average of the keyword indices.
+  const googleVolumes = {};
+  let totalGoogleVolume = 0;
+  let competitionWeightedSum = 0;
+  let competitionWeight = 0;
+  for (const [keyword, data] of Object.entries(volumes)) {
+    googleVolumes[keyword] = data.volume;
+    totalGoogleVolume += data.volume;
+    if (data.competitionIndex !== null && data.competitionIndex !== undefined) {
+      competitionWeightedSum += data.competitionIndex * data.volume;
+      competitionWeight += data.volume;
+    }
+  }
+
+  const competitionIndex =
+    competitionWeight > 0
+      ? Math.round(competitionWeightedSum / competitionWeight)
+      : null;
+  const competition =
+    competitionIndex === null
+      ? null
+      : competitionIndex <= 33
+        ? 'LOW'
+        : competitionIndex <= 66
+          ? 'MEDIUM'
+          : 'HIGH';
+
   const estAiVolume = Math.round(totalGoogleVolume * AI_VOLUME_MULTIPLIER);
 
   const { data: saved, error: dbError } = await supabaseAdmin
@@ -105,10 +131,12 @@ async function fetchAndSaveVolumes(
         prompt_id: promptId,
         intent,
         keywords,
-        google_volumes: volumes,
+        google_volumes: googleVolumes,
         total_google_volume: totalGoogleVolume,
         ai_volume_multiplier: AI_VOLUME_MULTIPLIER,
         est_ai_volume: estAiVolume,
+        competition_index: competitionIndex,
+        competition,
         location_code: locationCode || null,
         language_code: languageCode || null,
         fetched_at: new Date().toISOString(),

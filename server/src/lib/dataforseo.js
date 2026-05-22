@@ -18,7 +18,8 @@ function getAuthHeader() {
  * Fetch Google Ads search volume for a list of keywords via DataForSEO.
  * @param {string[]} keywords - Up to 1000 keywords
  * @param {{ locationCode?: number, languageCode?: string }} options
- * @returns {Promise<Record<string, number>>} Map of keyword → monthly search volume
+ * @returns {Promise<Record<string, { volume: number, competitionIndex: number | null, competition: string | null }>>}
+ *   Map of keyword → { monthly search volume, Google Ads competition index (0–100), competition label }
  */
 export async function getSearchVolumes(keywords, options = {}) {
   const body = [
@@ -61,7 +62,11 @@ export async function getSearchVolumes(keywords, options = {}) {
 
   const volumes = {};
   for (const item of task.result || []) {
-    volumes[item.keyword] = item.search_volume ?? 0;
+    volumes[item.keyword] = {
+      volume: item.search_volume ?? 0,
+      competitionIndex: item.competition_index ?? null,
+      competition: item.competition ?? null, // "LOW" | "MEDIUM" | "HIGH" | null
+    };
   }
 
   return volumes;
