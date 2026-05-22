@@ -61,6 +61,7 @@ import {
   StopCircle,
   Tag,
   ArrowUpRight,
+  Download,
 } from 'lucide-react';
 import {
   Select,
@@ -100,6 +101,21 @@ const DEFAULT_FILTERS: InsightsFilters = {
   model: '',
   topic: '',
 };
+
+const INSIGHT_EXPORT_HEADERS = [
+  'created_at',
+  'prompt',
+  'topic',
+  'platform',
+  'model',
+  'region',
+  'mention_count',
+  'citation_count',
+  'visibility_score',
+  'sentiment',
+  'citation_urls',
+  'competitor_mentions',
+];
 
 /** Max rows loaded for the grouped Prompt Results table (newest first).
  *  Sized to show several recent runs per (prompt × platform) pair so the
@@ -824,12 +840,12 @@ function InsightsSkeleton() {
         </Card>
         ))}
       </div>
-        <Card>
+    <Card>
         <CardContent className="pt-6">
           <Skeleton className="h-48 w-full" />
-          </CardContent>
-        </Card>
-      </div>
+      </CardContent>
+    </Card>
+  </div>
   );
 }
 
@@ -905,6 +921,7 @@ function NoDataForPeriod({
 // ─── Tracking Progress ────────────────────────────────────────────────────────
 
 import { saveTrackingJob, loadTrackingJob, clearTrackingJob } from '@/lib/tracking-job-store';
+import { toCsv } from '@/lib/csv';
 
 function TrackingProgressBanner({
   jobStatus,
@@ -1466,8 +1483,8 @@ export default function InsightsPage() {
           ),
         );
         setAvailableModels((prev) =>
-          [...new Set([...prev, ...models])].sort((a, b) =>
-            a.localeCompare(b),
+          [...new Set([...prev, ...models])].sort((a, b) => 
+            a.localeCompare(b)
           ),
         );
       } catch (err) {
@@ -1664,6 +1681,39 @@ export default function InsightsPage() {
     }
   };
 
+  const handleExportCsv = useCallback(() => {
+    const rows = results.map((r) => ({
+      created_at: r.createdAt,
+      prompt: r.promptText,
+      topic: r.topicName ?? '',
+      platform: r.platform,
+      model: r.modelUsed ?? '',
+      region: r.region ?? '',
+      mention_count: r.mentionCount,
+      citation_count: r.citationCount,
+      visibility_score: r.visibilityScore,
+      sentiment: r.sentiment,
+      citation_urls: r.citations.map((c) => c.url).join(', '),
+      competitor_mentions:
+        r.competitorMentions
+          ?.map((c) => `${c.name}:${c.mention_count}`)
+          .join(', ') ?? '',
+    }));
+
+    const csv = toCsv(rows, INSIGHT_EXPORT_HEADERS);
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    const date = new Date().toISOString().slice(0, 10);
+    const slug = brand?.slug ?? 'brand';
+
+    link.href = url;
+    link.download = `ansvisor_${slug}_insights_${date}.csv`;
+    link.click();
+
+    URL.revokeObjectURL(url);
+  }, [brand?.slug, results]);
+
   if (!brand || (isLoading && !summary)) return <InsightsSkeleton />;
 
   const noResults = !summary || summary.totalResults === 0;
@@ -1723,34 +1773,46 @@ export default function InsightsPage() {
           <h1 className="text-2xl font-bold tracking-tight">
             Answer Engine Insights
           </h1>
+
           <p className="text-muted-foreground text-sm">
             {brand.name} · Last run: {lastCheckedLabel} · {totalResults} results
           </p>
         </div>
-        {!isCloud && (
-          <div className="flex items-center gap-2 shrink-0">
-            <Button
-              variant="outline"
-              onClick={() => setShowSinglePrompt(true)}
-              className="gap-2"
-            >
-              <FlaskConical className="h-4 w-4" />
-              Test Single Prompt
-            </Button>
-            <Button
-              onClick={handleRunPrompts}
-              disabled={isRunning}
-              className="gap-2"
-            >
-              {isRunning ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Play className="h-4 w-4" />
-              )}
-              Run All
-            </Button>
-          </div>
-        )}
+
+        <div className="flex items-center gap-2 shrink-0">
+          {/* Always visible */}
+          <Button variant="outline" className="gap-2" onClick={handleExportCsv}>
+            <Download className="h-4 w-4" />
+            Export CSV
+          </Button>
+
+          {/* Self-host only */}
+          {!isCloud && (
+            <>
+              <Button
+                variant="outline"
+                onClick={() => setShowSinglePrompt(true)}
+                className="gap-2"
+              >
+                <FlaskConical className="h-4 w-4" />
+                Test Single Prompt
+              </Button>
+
+              <Button
+                onClick={handleRunPrompts}
+                disabled={isRunning}
+                className="gap-2"
+              >
+                {isRunning ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Play className="h-4 w-4" />
+                )}
+                Run All
+              </Button>
+            </>
+          )}
+        </div>
       </div>
 
       {/* Filter Bar */}
@@ -1845,7 +1907,7 @@ export default function InsightsPage() {
                     providerRows={competitorData.providerRows}
                     brands={competitorData.brands}
                   />
-            </CardContent>
+                </CardContent>
               </Card>
 
               <Card className="lg:col-span-2">
@@ -1855,7 +1917,7 @@ export default function InsightsPage() {
                 <CardContent>
                   <CompetitorLeaderboard data={competitorData.brands} />
                 </CardContent>
-      </Card>
+              </Card>
             </div>
           )}
 
@@ -1869,8 +1931,8 @@ export default function InsightsPage() {
                     Share of Voice by Platform
                   </CardTitle>
                   {sovData.overallSovChange !== null && sovData.overallSovChange !== 0 && (
-                    <DeltaBadge delta={sovData.overallSovChange} suffix=" pts" />
-                  )}
+                      <DeltaBadge delta={sovData.overallSovChange} suffix=" pts" />
+                    )}
                 </CardHeader>
                 <CardContent>
                   <ShareOfVoicePlatformChart
