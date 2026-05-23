@@ -80,7 +80,7 @@ export function parseScraperResponse(result, scraperId) {
       endIndex: idx * 100 + 50,
     }));
 
-    return { text, citations, model: 'google-aio' };
+    return { text, citations, model: 'google-aio', shopping_cards: [] };
   }
 
   if (scraperId === 'google-aimode') {
@@ -93,7 +93,7 @@ export function parseScraperResponse(result, scraperId) {
       endIndex: idx * 100 + 50,
     }));
 
-    return { text, citations, model: 'google-aimode' };
+    return { text, citations, model: 'google-aimode', shopping_cards: [] };
   }
 
   const text = result.markdown || result.text || '';
@@ -105,7 +105,12 @@ export function parseScraperResponse(result, scraperId) {
     endIndex: idx * 100 + 50,
   }));
 
-  return { text, citations, model };
+  return {
+    text,
+    citations,
+    model,
+    shopping_cards: result.shopping_cards ?? [],
+  };
 }
 
 /**
@@ -173,7 +178,7 @@ export async function submitScraperTask(promptText, scraperId, region, opts = {}
  * @param {string} taskId
  * @param {string} scraperId - needed to parse the response correctly
  * @param {{ maxWaitMs?: number, pollIntervalMs?: number }} [opts]
- * @returns {Promise<{ text: string, citations: Array, model: string }>}
+ * @returns {Promise<{ text: string, citations: Array, model: string, shopping_cards: Array }>}
  */
 export async function pollScraperResult(taskId, scraperId, opts = {}) {
   const maxWait = opts.maxWaitMs ?? DEFAULT_MAX_WAIT_MS;
@@ -248,7 +253,7 @@ export async function pollScraperResult(taskId, scraperId, opts = {}) {
  * @param {string} promptText
  * @param {string} scraperId
  * @param {string} [region]
- * @returns {Promise<{ text: string, citations: Array<{ url: string, title: string, startIndex: number, endIndex: number }>, model: string }>}
+ * @returns {Promise<{ text: string, citations: Array<{ url: string, title: string, startIndex: number, endIndex: number }>, model: string, shopping_cards: Array }>}
  */
 export async function runScraperPrompt(promptText, scraperId, region) {
   const { taskId } = await submitScraperTask(promptText, scraperId, region);

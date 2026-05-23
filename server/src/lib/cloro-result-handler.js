@@ -18,7 +18,7 @@ import { parseResponse, countBrandMentions } from './response-parser.js';
 
 /**
  * @param {object} args
- * @param {{ text: string, citations: Array, model: string }} args.aiResponse
+ * @param {{ text: string, citations: Array, model: string, shopping_cards: Array }} args.aiResponse
  *   Already parsed via parseScraperResponse (cloro-scraper.js)
  * @param {string} args.scraperId           Cloro scraper id (e.g. 'chatgpt-web')
  * @param {string} args.promptId
@@ -63,6 +63,7 @@ export async function handleScraperResult({
     model_used: aiResponse.model,
     region: region ?? null,
     competitor_mentions: metrics.competitorMentions,
+    shopping_cards: aiResponse.shopping_cards ?? [],
   });
 
   if (error) {

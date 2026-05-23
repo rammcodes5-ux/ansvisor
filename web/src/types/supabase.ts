@@ -472,6 +472,7 @@ export type Database = {
           region: string | null;
           response: string;
           sentiment: string;
+          shopping_cards: Json;
           visibility_score: number;
         };
         Insert: {
@@ -488,6 +489,7 @@ export type Database = {
           region?: string | null;
           response?: string;
           sentiment?: string;
+          shopping_cards?: Json;
           visibility_score?: number;
         };
         Update: {
@@ -504,6 +506,7 @@ export type Database = {
           region?: string | null;
           response?: string;
           sentiment?: string;
+          shopping_cards?: Json;
           visibility_score?: number;
         };
         Relationships: [
