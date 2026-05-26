@@ -155,7 +155,7 @@ export function ApiKeysSection() {
           <p className="text-muted-foreground">
             Paste this URL + a key below into Claude Desktop / Claude Code / Cursor. See the{' '}
             <a
-              href="https://github.com/aeohub/ansvisor#whats-next"
+              href="https://github.com/ansvisor/ansvisor#whats-next"
               target="_blank"
               rel="noreferrer"
               className="underline"

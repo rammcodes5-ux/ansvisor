@@ -36,7 +36,7 @@ Both `web/` and `server/` are independent packages with their own `package.json`
 ### 1. Clone the repository
 
 ```bash
-git clone https://github.com/aeohub/ansvisor.git
+git clone https://github.com/ansvisor/ansvisor.git
 cd ansvisor
 ```
 

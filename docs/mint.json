@@ -26,7 +26,7 @@
   "topbarLinks": [
     {
       "name": "GitHub",
-      "url": "https://github.com/aeohub/ansvisor"
+      "url": "https://github.com/ansvisor/ansvisor"
     }
   ],
   "topbarCtaButton": {
@@ -37,12 +37,12 @@
     {
       "name": "GitHub",
       "icon": "github",
-      "url": "https://github.com/aeohub/ansvisor"
+      "url": "https://github.com/ansvisor/ansvisor"
     },
     {
       "name": "Changelog",
       "icon": "list",
-      "url": "https://github.com/aeohub/ansvisor/releases"
+      "url": "https://github.com/ansvisor/ansvisor/releases"
     }
   ],
   "tabs": [
@@ -110,7 +110,7 @@
     }
   ],
   "footerSocials": {
-    "github": "https://github.com/aeohub/ansvisor",
+    "github": "https://github.com/ansvisor/ansvisor",
     "website": "https://ansvisor.com"
   }
 }

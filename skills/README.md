@@ -69,7 +69,7 @@ itself.
 ### Claude Code / Claude Desktop
 
 ```bash
-git clone https://github.com/aeohub/ansvisor.git
+git clone https://github.com/ansvisor/ansvisor.git
 cp -r ansvisor/skills/ansvisor-aeo-coach ~/.claude/skills/   # MCP flavour
 # or
 cp -r ansvisor/skills/ansvisor-aeo-coach-standalone ~/.claude/skills/
@@ -123,4 +123,4 @@ conventions, and PR workflow.
 
 ## License
 
-[MIT](../LICENSE) — part of [Ansvisor](https://github.com/aeohub/ansvisor).
+[MIT](../LICENSE) — part of [Ansvisor](https://github.com/ansvisor/ansvisor).

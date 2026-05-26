@@ -1,13 +1,13 @@
 {
-  "name": "@aeohub/ansvisor-web",
+  "name": "@ansvisor/ansvisor-web",
   "version": "0.1.1",
   "private": true,
   "repository": {
     "type": "git",
-    "url": "https://github.com/aeohub/ansvisor.git",
+    "url": "https://github.com/ansvisor/ansvisor.git",
     "directory": "web"
   },
-  "homepage": "https://github.com/aeohub/ansvisor",
+  "homepage": "https://github.com/ansvisor/ansvisor",
   "license": "MIT",
   "scripts": {
     "dev": "next dev",

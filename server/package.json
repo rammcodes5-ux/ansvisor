@@ -1,15 +1,15 @@
 {
-  "name": "@aeohub/ansvisor-server",
+  "name": "@ansvisor/ansvisor-server",
   "version": "0.1.1",
   "description": "Ansvisor - AI Engine Optimization Server",
   "main": "src/server.js",
   "type": "module",
   "repository": {
     "type": "git",
-    "url": "https://github.com/aeohub/ansvisor.git",
+    "url": "https://github.com/ansvisor/ansvisor.git",
     "directory": "server"
   },
-  "homepage": "https://github.com/aeohub/ansvisor",
+  "homepage": "https://github.com/ansvisor/ansvisor",
   "scripts": {
     "dev": "NODE_ENV=development nodemon src/server.js",
     "start": "NODE_ENV=production pm2 start src/server.js --max-restarts 10000"

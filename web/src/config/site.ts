@@ -5,7 +5,7 @@ export const siteConfig = {
   url: 'https://ansvisor.com',
   ogImage: 'https://app.ansvisor.com/opengraph-image',
   links: {
-    github: 'https://github.com/aeohub/ansvisor',
+    github: 'https://github.com/ansvisor/ansvisor',
     docs: 'https://docs.ansvisor.com',
   },
   legal: {

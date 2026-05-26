@@ -3,7 +3,7 @@ FROM node:20-alpine AS base
 ARG VERSION=0.1.0
 LABEL org.opencontainers.image.title="Ansvisor Web"
 LABEL org.opencontainers.image.version=$VERSION
-LABEL org.opencontainers.image.source="https://github.com/aeohub/ansvisor"
+LABEL org.opencontainers.image.source="https://github.com/ansvisor/ansvisor"
 LABEL org.opencontainers.image.licenses="MIT"
 
 # Install dependencies

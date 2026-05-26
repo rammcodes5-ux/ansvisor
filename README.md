@@ -5,7 +5,7 @@
 [![🚀 Try the Cloud — ansvisor.com](https://img.shields.io/badge/🚀_Try_the_Cloud-ansvisor.com-6366f1?style=for-the-badge&logoColor=white&logo=vercel)](https://ansvisor.com)
 [![📚 Docs](https://img.shields.io/badge/📚_Docs-docs.ansvisor.com-10b981?style=for-the-badge&logoColor=white&logo=readthedocs)](https://docs.ansvisor.com)
 
-[![Star on GitHub](https://img.shields.io/github/stars/aeohub/ansvisor?style=for-the-badge&logo=github&color=gold)](https://github.com/aeohub/ansvisor)
+[![Star on GitHub](https://img.shields.io/github/stars/ansvisor/ansvisor?style=for-the-badge&logo=github&color=gold)](https://github.com/ansvisor/ansvisor)
 [![MIT License](https://img.shields.io/badge/License-MIT-yellow?style=for-the-badge)](https://opensource.org/licenses/MIT)
 [![Claude Code](https://img.shields.io/badge/Built%20with-Claude%20Code-green?style=for-the-badge&logo=anthropic)](https://claude.com/claude-code)
 
@@ -29,8 +29,8 @@ We're incredibly excited to shape what's next alongside our amazing community.
 
 _Star us to follow along as we ship 👇_
 
-<a href="https://github.com/aeohub/ansvisor">
-  <img src="https://img.shields.io/github/stars/aeohub/ansvisor?style=social&label=Star" alt="Star Ansvisor on GitHub">
+<a href="https://github.com/ansvisor/ansvisor">
+  <img src="https://img.shields.io/github/stars/ansvisor/ansvisor?style=social&label=Star" alt="Star Ansvisor on GitHub">
 </a>
 
 </div>
@@ -79,7 +79,7 @@ _Star us to follow along as we ship 👇_
 #### 1. Clone and configure
 
 ```bash
-git clone https://github.com/aeohub/ansvisor.git
+git clone https://github.com/ansvisor/ansvisor.git
 cd ansvisor
 
 cp web/.env.example web/.env.local
@@ -174,7 +174,7 @@ What we're planning to build next. React with 👍 on the linked issue (or open 
 - [ ] **BYO LLM keys** — bring your own OpenAI / Anthropic / Gemini API key for tracking and content generation, so you control cost and data handling
 - [ ] **Webhook recipe library** — one-click Notion / Linear / Asana / Slack templates so a Content Brief can land in your editorial workflow with zero glue code
 
-See an idea missing? Check the [Ideas discussions](https://github.com/aeohub/ansvisor/discussions/categories/ideas) — upvote an existing one or open a new thread.
+See an idea missing? Check the [Ideas discussions](https://github.com/ansvisor/ansvisor/discussions/categories/ideas) — upvote an existing one or open a new thread.
 
 ## Contributing
 

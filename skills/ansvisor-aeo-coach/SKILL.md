@@ -38,7 +38,7 @@ Activate this skill when the user asks anything in the shape of:
 
 If you don't see the Ansvisor MCP tools listed below in your available
 tools, the user hasn't connected the MCP server yet. Point them at the
-[MCP setup guide](https://github.com/aeohub/ansvisor/blob/main/docs/guides/mcp-server.mdx)
+[MCP setup guide](https://github.com/ansvisor/ansvisor/blob/main/docs/guides/mcp-server.mdx)
 and stop — do not invent numbers, and do not attempt to call the REST
 API directly from this skill (that's a different skill).
 
