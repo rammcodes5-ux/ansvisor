@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { stripe, PRICE_IDS } from '@/lib/stripe';
 import { SUBSCRIBABLE_PLANS } from '@/config/plans';
+import { alignPromptsToPlanForOrg } from '@/lib/plan-engines';
 
 type SubscriptionItem = {
   id: string;
@@ -172,6 +173,22 @@ export async function PATCH(req: NextRequest) {
     // Optimistic DB update
     const supabase = await createClient();
     await supabase.from('organizations').update({ plan: newPlanId }).eq('id', org.id);
+
+    // Align prompts to the new plan's engine set so an upgrade actually
+    // expands (Starter → Growth: 2 → 8 engines) or trims (Growth → Starter:
+    // 8 → 2) the tracked engines. Same helper used by the Stripe success
+    // route (#78) and the webhook (#79). We do it here too because PATCH
+    // performs the optimistic plan write itself — by the time the matching
+    // `subscription.updated` webhook arrives, the snapshot guard there
+    // would see "plan unchanged" and skip alignment.
+    try {
+      const result = await alignPromptsToPlanForOrg(org.id, newPlanId);
+      console.log(
+        `[stripe/subscription] Aligned ${result.promptCount} prompt(s) to plan=${newPlanId} (${result.platforms.length} scrapers, ${result.models.length} models) for org ${org.id}`,
+      );
+    } catch (alignErr) {
+      console.error('[stripe/subscription] Plan-engine alignment threw:', alignErr);
+    }
 
     const newPrice = updated.items.data[0]?.price;
 

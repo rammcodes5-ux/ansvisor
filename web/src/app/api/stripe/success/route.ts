@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { stripe } from '@/lib/stripe';
 import { supabaseAdmin } from '@/lib/supabase/admin';
-import { getActiveEngineIdsForPlan } from '@/lib/plan-engines';
+import { alignPromptsToPlanForOrg } from '@/lib/plan-engines';
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
@@ -52,52 +52,16 @@ export async function GET(req: NextRequest) {
           console.log('[stripe/success] DB updated for org:', orgId);
 
           // Align onboarding-created prompts to the just-confirmed plan's
-          // engine set. Onboarding saves prompts at step 4 with whatever
-          // engines the *current* (pre-checkout, default Starter) plan
-          // allows — 2 scrapers. Without this, a user who picks Growth at
-          // step 6 still ends up tracking only those 2 engines instead of
-          // the 8 Growth allows. Issue #78.
-          //
-          // This runs only on the initial checkout-success redirect (i.e.
-          // onboarding's plan step). Plan changes / upgrades for existing
-          // orgs flow through the Stripe subscription update path and are
-          // tracked separately.
+          // engine set. Onboarding saves prompts at step 4 with the default
+          // Starter set (2 scrapers); without this, a user who picks Growth
+          // at step 6 still ends up tracking only those 2 engines (#78).
+          // The shared helper is also called from the Stripe webhook so
+          // upgrades / downgrades of existing orgs stay in sync (#79).
           try {
-            const { platforms, models } = getActiveEngineIdsForPlan(planId || 'starter');
-
-            const { data: orgBrands } = await supabaseAdmin
-              .from('brands')
-              .select('id')
-              .eq('organization_id', orgId);
-
-            const brandIds = (orgBrands ?? []).map((b) => b.id);
-
-            if (brandIds.length > 0) {
-              const { data: promptSets } = await supabaseAdmin
-                .from('prompt_sets')
-                .select('id')
-                .in('brand_id', brandIds);
-
-              const promptSetIds = (promptSets ?? []).map((p) => p.id);
-
-              if (promptSetIds.length > 0) {
-                const { error: alignError } = await supabaseAdmin
-                  .from('prompts')
-                  .update({ platforms, models })
-                  .in('prompt_set_id', promptSetIds);
-
-                if (alignError) {
-                  console.error(
-                    '[stripe/success] Failed to align prompts to plan engines:',
-                    alignError,
-                  );
-                } else {
-                  console.log(
-                    `[stripe/success] Aligned prompts to plan=${planId || 'starter'} engines (${platforms.length} scrapers, ${models.length} models) for org ${orgId}`,
-                  );
-                }
-              }
-            }
+            const result = await alignPromptsToPlanForOrg(orgId, planId || 'starter');
+            console.log(
+              `[stripe/success] Aligned ${result.promptCount} prompt(s) to plan=${planId || 'starter'} (${result.platforms.length} scrapers, ${result.models.length} models) for org ${orgId}`,
+            );
           } catch (alignErr) {
             console.error('[stripe/success] Plan-engine alignment threw:', alignErr);
           }

@@ -1,7 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { stripe } from '@/lib/stripe';
 import { supabaseAdmin } from '@/lib/supabase/admin';
+import { alignPromptsToPlanForOrg } from '@/lib/plan-engines';
 import type Stripe from 'stripe';
+
+/**
+ * Run the shared prompt-engine alignment for an org, logging the result
+ * and swallowing errors so a single failed update can't blow up the
+ * whole webhook handler (Stripe retries on non-2xx). Each call is
+ * idempotent — re-running with the same plan is a no-op write.
+ */
+async function alignPromptsSafe(orgId: string, planId: string, ctx: string) {
+  try {
+    const result = await alignPromptsToPlanForOrg(orgId, planId);
+    console.log(
+      `[webhook:${ctx}] Aligned ${result.promptCount} prompt(s) to plan=${planId} (${result.platforms.length} scrapers, ${result.models.length} models) for org ${orgId}`,
+    );
+  } catch (err) {
+    console.error(`[webhook:${ctx}] Plan-engine alignment threw for org ${orgId}:`, err);
+  }
+}
 
 export async function POST(req: NextRequest) {
   const body = await req.text();
@@ -56,8 +74,15 @@ export async function POST(req: NextRequest) {
                 stripe_subscription_id: subscriptionId,
               })
               .eq('id', orgId);
-            if (error) console.error('[webhook] DB update error:', error);
-            else console.log('[webhook] DB updated successfully for org:', orgId);
+            if (error) {
+              console.error('[webhook] DB update error:', error);
+            } else {
+              console.log('[webhook] DB updated successfully for org:', orgId);
+              // Mirror the success-route alignment so checkouts that race
+              // ahead of the redirect (or that happen out-of-band entirely)
+              // still get prompts in sync. Idempotent.
+              await alignPromptsSafe(orgId, planId || 'starter', 'checkout');
+            }
           }
         } else {
           console.log(
@@ -94,14 +119,33 @@ export async function POST(req: NextRequest) {
           }
 
           // Update plan if metadata has plan_id
-          if (subscription.metadata.plan_id) {
-            updates.plan = subscription.metadata.plan_id;
+          const newPlanId = subscription.metadata.plan_id;
+          if (newPlanId) {
+            updates.plan = newPlanId;
           }
+
+          // Snapshot the pre-update plan so we can detect plan transitions
+          // (Starter → Growth, Growth → Starter, etc.) and only re-align
+          // prompts when the plan actually changed. Without this, every
+          // routine subscription.updated event (renewal, status flip) would
+          // re-run the alignment unnecessarily.
+          const { data: orgBefore } = await supabaseAdmin
+            .from('organizations')
+            .select('id, plan')
+            .eq('stripe_customer_id', customerId)
+            .maybeSingle();
 
           await supabaseAdmin
             .from('organizations')
             .update(updates)
             .eq('stripe_customer_id', customerId);
+
+          if (orgBefore && newPlanId && newPlanId !== orgBefore.plan) {
+            // Plan changed — re-align prompts. Handles both expansion
+            // (Starter → Growth: 2 → 8 engines) and contraction
+            // (Growth → Starter: 8 → 2 engines). Issue #79.
+            await alignPromptsSafe(orgBefore.id, newPlanId, 'subscription.updated');
+          }
         }
         break;
       }
@@ -114,6 +158,15 @@ export async function POST(req: NextRequest) {
             : subscription.customer?.id;
 
         if (customerId) {
+          // Snapshot to know whether this is an actual downgrade (Growth →
+          // Starter) — if they were already on Starter, alignment is a
+          // no-op anyway, but skipping the call avoids needless queries.
+          const { data: orgBefore } = await supabaseAdmin
+            .from('organizations')
+            .select('id, plan')
+            .eq('stripe_customer_id', customerId)
+            .maybeSingle();
+
           await supabaseAdmin
             .from('organizations')
             .update({
@@ -121,6 +174,13 @@ export async function POST(req: NextRequest) {
               plan: 'starter',
             })
             .eq('stripe_customer_id', customerId);
+
+          if (orgBefore && orgBefore.plan !== 'starter') {
+            // Trim prompts back to Starter's 2-engine set so a downgraded
+            // org doesn't keep paying scraper cost on engines the plan no
+            // longer covers. Issue #79.
+            await alignPromptsSafe(orgBefore.id, 'starter', 'subscription.deleted');
+          }
         }
         break;
       }
