@@ -10,6 +10,11 @@ export const FEATURES = [
   'api_access',
   'white_label',
   'sso_saml',
+  // In-product AI agent — chat panel that calls the MCP read tools to
+  // answer questions about the brand's AI search performance. Gated on
+  // cloud by plan; self-host gets it unconditionally because the
+  // underlying tool calls run against the user's own infrastructure.
+  'ai_agent',
 ] as const;
 
 export type Feature = (typeof FEATURES)[number];
@@ -30,6 +35,12 @@ export interface PlanLimits {
   allowedScrapers?: readonly string[];
   /** If set, only these model IDs are available. Undefined = all, [] = none. */
   allowedModels?: readonly string[];
+  /**
+   * Cap on combined prompt + completion tokens for the in-product AI agent
+   * per user, per calendar month. `undefined` = unlimited (self-host,
+   * enterprise). Has no effect when `ai_agent` is not in `features`.
+   */
+  aiAgentTokenQuota?: number;
 }
 
 export interface PlanPricing {
@@ -70,7 +81,10 @@ export const PLANS: Record<PlanId, Plan> = {
         'content_optimization',
         'custom_reports',
         'api_access',
+        'ai_agent',
       ],
+      // Self-host runs against the operator's own infrastructure / API
+      // keys — no platform quota to enforce.
     },
   },
   starter: {
@@ -127,7 +141,13 @@ export const PLANS: Record<PlanId, Plan> = {
         'content_optimization',
         'custom_reports',
         'api_access',
+        'ai_agent',
       ],
+      // ~50k combined prompt + completion tokens per user per month.
+      // Claude Sonnet 4.6 averages ~750 tokens/turn for typical
+      // dashboard questions including tool I/O, so this is ~65 turns
+      // per user before they hit the quota wall.
+      aiAgentTokenQuota: 50000,
     },
   },
   enterprise: {
@@ -156,7 +176,9 @@ export const PLANS: Record<PlanId, Plan> = {
         'api_access',
         'white_label',
         'sso_saml',
+        'ai_agent',
       ],
+      // Enterprise — no platform quota; usage governed by contract.
     },
   },
 } as const;
@@ -184,7 +206,10 @@ export function hasFeature(plan: Plan, feature: Feature): boolean {
 
 export function isWithinLimit(
   plan: Plan,
-  key: keyof Omit<PlanLimits, 'features' | 'allowedScrapers' | 'allowedModels'>,
+  key: keyof Omit<
+    PlanLimits,
+    'features' | 'allowedScrapers' | 'allowedModels' | 'aiAgentTokenQuota'
+  >,
   currentCount: number,
 ): boolean {
   const limit = plan.limits[key];

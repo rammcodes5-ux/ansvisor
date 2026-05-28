@@ -14,6 +14,111 @@ export type Database = {
   };
   public: {
     Tables: {
+      agent_conversations: {
+        Row: {
+          id: string;
+          user_id: string;
+          organization_id: string;
+          brand_id: string | null;
+          title: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          organization_id: string;
+          brand_id?: string | null;
+          title?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          organization_id?: string;
+          brand_id?: string | null;
+          title?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      agent_messages: {
+        Row: {
+          id: string;
+          conversation_id: string;
+          role: 'user' | 'assistant' | 'tool';
+          content: string;
+          tool_calls: Json | null;
+          tool_call_id: string | null;
+          tool_name: string | null;
+          tool_result: Json | null;
+          prompt_tokens: number | null;
+          completion_tokens: number | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          conversation_id: string;
+          role: 'user' | 'assistant' | 'tool';
+          content?: string;
+          tool_calls?: Json | null;
+          tool_call_id?: string | null;
+          tool_name?: string | null;
+          tool_result?: Json | null;
+          prompt_tokens?: number | null;
+          completion_tokens?: number | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          conversation_id?: string;
+          role?: 'user' | 'assistant' | 'tool';
+          content?: string;
+          tool_calls?: Json | null;
+          tool_call_id?: string | null;
+          tool_name?: string | null;
+          tool_result?: Json | null;
+          prompt_tokens?: number | null;
+          completion_tokens?: number | null;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      agent_token_usage: {
+        Row: {
+          id: string;
+          user_id: string;
+          organization_id: string;
+          year_month: string;
+          prompt_tokens: number;
+          completion_tokens: number;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          organization_id: string;
+          year_month: string;
+          prompt_tokens?: number;
+          completion_tokens?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          organization_id?: string;
+          year_month?: string;
+          prompt_tokens?: number;
+          completion_tokens?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
       api_keys: {
         Row: {
           id: string;
