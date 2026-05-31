@@ -1,6 +1,7 @@
 'use server';
 
 import { createClient } from '@/lib/supabase/server';
+import { expandDateToEndOfDay } from '@/lib/dates';
 import type { Citation } from '@/types';
 import {
   classifyDomain,
@@ -166,8 +167,9 @@ export async function getCitationsOverview(
     .eq('brand_id', brandId);
 
   const { from, to } = resolveDateRange(filters);
+  const expandedTo = expandDateToEndOfDay(to);
   if (from) query = query.gte('created_at', from);
-  if (to) query = query.lte('created_at', to);
+  if (expandedTo) query = query.lte('created_at', expandedTo);
   if (filters.platforms && filters.platforms.length > 0) {
     query = applyModelFilter(query, filters.platforms);
   }

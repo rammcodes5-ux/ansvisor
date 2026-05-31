@@ -1,6 +1,7 @@
 'use server';
 
 import { createClient } from '@/lib/supabase/server';
+import { expandDateToEndOfDay } from '@/lib/dates';
 import type { PromptResult, AIPlatform, Sentiment, Citation, CompetitorMention } from '@/types';
 
 /**
@@ -185,7 +186,8 @@ async function buildResultsQuery(
   query = applyModelFilter(query, opts?.model);
   if (opts?.region) query = query.eq('region', opts.region);
   if (opts?.dateFrom) query = query.gte('created_at', opts.dateFrom);
-  if (opts?.dateTo) query = query.lte('created_at', opts.dateTo);
+  const expandedDateTo = expandDateToEndOfDay(opts?.dateTo);
+  if (expandedDateTo) query = query.lte('created_at', expandedDateTo);
   if (opts?.promptId) query = query.eq('prompt_id', opts.promptId);
 
   if (opts?.topicId) {
@@ -443,7 +445,7 @@ export async function getInsightsSummary(
   const { data: curData, error } = await supabase.rpc('insights_aggregates', {
     ...baseArgs,
     p_date_from: opts?.dateFrom ?? null,
-    p_date_to: opts?.dateTo ?? null,
+    p_date_to: expandDateToEndOfDay(opts?.dateTo) ?? null,
   });
   if (error) throw new Error(error.message);
 
@@ -508,7 +510,7 @@ export async function getInsightsSummary(
       supabase.rpc('insights_aggregates', {
         ...baseArgs,
         p_date_from: opts?.dateFrom ?? currentFrom.toISOString(),
-        p_date_to: opts?.dateTo ?? null,
+        p_date_to: expandDateToEndOfDay(opts?.dateTo) ?? null,
       }),
       supabase.rpc('insights_aggregates', {
         ...baseArgs,
@@ -885,7 +887,7 @@ export async function getCompetitorComparison(
     supabase.rpc('competitor_aggregates', {
       ...baseArgs,
       p_date_from: opts?.dateFrom ?? null,
-      p_date_to: opts?.dateTo ?? null,
+      p_date_to: expandDateToEndOfDay(opts?.dateTo) ?? null,
     }),
   ]);
   if (aggErr) throw new Error(aggErr.message);
@@ -917,7 +919,7 @@ export async function getCompetitorComparison(
     supabase.rpc('competitor_aggregates', {
       ...baseArgs,
       p_date_from: opts?.dateFrom ?? currentFrom.toISOString(),
-      p_date_to: opts?.dateTo ?? null,
+      p_date_to: expandDateToEndOfDay(opts?.dateTo) ?? null,
     }),
     supabase.rpc('competitor_aggregates', {
       ...baseArgs,
@@ -1111,7 +1113,7 @@ export async function getShareOfVoiceData(
     supabase.rpc('share_of_voice_aggregates', {
       ...baseArgs,
       p_date_from: opts?.dateFrom ?? null,
-      p_date_to: opts?.dateTo ?? null,
+      p_date_to: expandDateToEndOfDay(opts?.dateTo) ?? null,
     }),
     supabase.rpc('share_of_voice_aggregates', {
       ...baseArgs,
@@ -1224,7 +1226,8 @@ export async function getVisibilityTrend(
   query = applyModelFilter(query, opts?.model);
   if (opts?.region) query = query.eq('region', opts.region);
   if (opts?.dateFrom) query = query.gte('created_at', opts.dateFrom);
-  if (opts?.dateTo) query = query.lte('created_at', opts.dateTo);
+  const expandedDateTo = expandDateToEndOfDay(opts?.dateTo);
+  if (expandedDateTo) query = query.lte('created_at', expandedDateTo);
 
   if (opts?.topicId) {
     const { data: topicPrompts } = await supabase

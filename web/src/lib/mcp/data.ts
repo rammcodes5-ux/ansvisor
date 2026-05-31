@@ -9,6 +9,7 @@ import {
   type SourceCategory,
 } from '@/lib/citations/classify';
 import { classifyArticleType } from '@/lib/citations/article-type';
+import { expandDateToEndOfDay } from '@/lib/dates';
 
 /**
  * Pure data-fetch functions shared by the MCP route and the parallel REST
@@ -90,7 +91,8 @@ export async function getVisibilitySummaryFor(
     .eq('brand_id', params.brandId);
 
   if (params.dateFrom) query = query.gte('created_at', params.dateFrom);
-  if (params.dateTo) query = query.lte('created_at', params.dateTo);
+  const expandedDateTo = expandDateToEndOfDay(params.dateTo);
+  if (expandedDateTo) query = query.lte('created_at', expandedDateTo);
   if (params.region) query = query.eq('region', params.region);
   if (params.model) {
     const list = params.model
@@ -732,7 +734,7 @@ export async function getCompetitorComparisonFor(
     p_models: p_models && p_models.length > 0 ? p_models : null,
     p_region: params.region ?? null,
     p_date_from: params.dateFrom ?? null,
-    p_date_to: params.dateTo ?? null,
+    p_date_to: expandDateToEndOfDay(params.dateTo) ?? null,
     p_prompt_id: null as string | null,
     p_topic_id: params.topicId ?? null,
   };
@@ -895,7 +897,8 @@ export async function listCitationsFor(
     .eq('brand_id', params.brandId);
 
   if (params.dateFrom) query = query.gte('created_at', params.dateFrom);
-  if (params.dateTo) query = query.lte('created_at', params.dateTo);
+  const expandedDateTo = expandDateToEndOfDay(params.dateTo);
+  if (expandedDateTo) query = query.lte('created_at', expandedDateTo);
   if (params.region) query = query.eq('region', params.region);
   if (params.model) {
     const list = params.model
@@ -1166,7 +1169,7 @@ export async function getVisibilityTrendFor(
     p_models: p_models && p_models.length > 0 ? p_models : null,
     p_region: params.region ?? null,
     p_date_from: params.dateFrom ?? null,
-    p_date_to: params.dateTo ?? null,
+    p_date_to: expandDateToEndOfDay(params.dateTo) ?? null,
     p_topic_id: params.topicId ?? null,
     p_granularity: granularity,
   });
