@@ -125,7 +125,7 @@ function renderLine(spec: AgentChartSpec, width: number) {
       {series.length > 1 && <Legend wrapperStyle={{ fontSize: 11 }} />}
       {series.map((s, i) => (
         <Line
-          key={s.key}
+          key={`${i}-${s.key}`}
           type="monotone"
           dataKey={s.key}
           name={s.label}
@@ -161,7 +161,7 @@ function renderBar(spec: AgentChartSpec, width: number) {
       {series.length > 1 && <Legend wrapperStyle={{ fontSize: 11 }} />}
       {series.map((s, i) => (
         <Bar
-          key={s.key}
+          key={`${i}-${s.key}`}
           dataKey={s.key}
           name={s.label}
           fill={s.color ?? CHART_COLORS[i % CHART_COLORS.length]}
