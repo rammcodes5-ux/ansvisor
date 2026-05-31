@@ -80,12 +80,17 @@ function ChartContainer({
   );
 }
 
+// All theme tokens in globals.css ship as full `oklch(...)` values, so
+// we reference them directly with `var(--…)`. Wrapping in `hsl(var(--…))`
+// produces invalid CSS and the browser falls back to default black,
+// which is unreadable in dark mode.
+const AXIS_TICK = { fill: 'var(--muted-foreground)', fontSize: 11 } as const;
 const TOOLTIP_STYLE = {
-  background: 'hsl(var(--card))',
-  border: '1px solid hsl(var(--border))',
+  background: 'var(--card)',
+  border: '1px solid var(--border)',
   borderRadius: '0.5rem',
   fontSize: '0.75rem',
-  color: 'hsl(var(--foreground))',
+  color: 'var(--foreground)',
 } as const;
 
 export function AgentChart({ spec }: { spec: AgentChartSpec }) {
@@ -113,16 +118,13 @@ function renderLine(spec: AgentChartSpec, width: number) {
       data={spec.data}
       margin={{ top: 8, right: 16, bottom: 0, left: -8 }}
     >
-      <CartesianGrid stroke="hsl(var(--border))" strokeDasharray="3 3" vertical={false} />
-      <XAxis dataKey={xKey} stroke="hsl(var(--muted-foreground))" fontSize={11} tickLine={false} />
-      <YAxis
-        stroke="hsl(var(--muted-foreground))"
-        fontSize={11}
-        tickLine={false}
-        axisLine={false}
-      />
-      <Tooltip contentStyle={TOOLTIP_STYLE} cursor={{ stroke: 'hsl(var(--border))' }} />
-      {series.length > 1 && <Legend wrapperStyle={{ fontSize: 11 }} />}
+      <CartesianGrid stroke="var(--border)" strokeDasharray="3 3" vertical={false} />
+      <XAxis dataKey={xKey} stroke="var(--border)" tick={AXIS_TICK} tickLine={false} />
+      <YAxis stroke="var(--border)" tick={AXIS_TICK} tickLine={false} axisLine={false} />
+      <Tooltip contentStyle={TOOLTIP_STYLE} cursor={{ stroke: 'var(--border)' }} />
+      {series.length > 1 && (
+        <Legend wrapperStyle={{ fontSize: 11, color: 'var(--muted-foreground)' }} />
+      )}
       {series.map((s, i) => (
         <Line
           key={`${i}-${s.key}`}
@@ -149,16 +151,13 @@ function renderBar(spec: AgentChartSpec, width: number) {
       data={spec.data}
       margin={{ top: 8, right: 16, bottom: 0, left: -8 }}
     >
-      <CartesianGrid stroke="hsl(var(--border))" strokeDasharray="3 3" vertical={false} />
-      <XAxis dataKey={xKey} stroke="hsl(var(--muted-foreground))" fontSize={11} tickLine={false} />
-      <YAxis
-        stroke="hsl(var(--muted-foreground))"
-        fontSize={11}
-        tickLine={false}
-        axisLine={false}
-      />
-      <Tooltip contentStyle={TOOLTIP_STYLE} cursor={{ fill: 'hsl(var(--muted) / 0.3)' }} />
-      {series.length > 1 && <Legend wrapperStyle={{ fontSize: 11 }} />}
+      <CartesianGrid stroke="var(--border)" strokeDasharray="3 3" vertical={false} />
+      <XAxis dataKey={xKey} stroke="var(--border)" tick={AXIS_TICK} tickLine={false} />
+      <YAxis stroke="var(--border)" tick={AXIS_TICK} tickLine={false} axisLine={false} />
+      <Tooltip contentStyle={TOOLTIP_STYLE} cursor={{ fill: 'var(--muted)', opacity: 0.3 }} />
+      {series.length > 1 && (
+        <Legend wrapperStyle={{ fontSize: 11, color: 'var(--muted-foreground)' }} />
+      )}
       {series.map((s, i) => (
         <Bar
           key={`${i}-${s.key}`}
@@ -179,7 +178,7 @@ function renderPie(spec: AgentChartSpec, width: number) {
   return (
     <PieChart width={width} height={CHART_HEIGHT}>
       <Tooltip contentStyle={TOOLTIP_STYLE} />
-      <Legend wrapperStyle={{ fontSize: 11 }} />
+      <Legend wrapperStyle={{ fontSize: 11, color: 'var(--muted-foreground)' }} />
       <Pie
         data={spec.data}
         dataKey={valueKey}
