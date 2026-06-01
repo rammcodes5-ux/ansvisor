@@ -26,9 +26,10 @@ import {
 } from '@/components/ui/select';
 import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Plus, Sparkles, Save, X, Play, Search } from 'lucide-react';
+import { Loader2, Plus, Sparkles, Save, X, Play, Search, Lock } from 'lucide-react';
 import { MODEL_GROUPS, ALL_MODELS, SCRAPER_GROUPS, ALL_SCRAPERS } from '@/config/prompt-options';
 import { usePlanContext } from '@/components/providers/plan-provider';
+import { useUserRole } from '@/hooks/use-user-role';
 import { PLANS } from '@/config/plans';
 import { saveTrackingJob } from '@/lib/tracking-job-store';
 import { useRouter } from '@/i18n/navigation';
@@ -73,6 +74,7 @@ export default function PromptsPage() {
   const [manualCategory, setManualCategory] = useState('');
   const [generateTopics, setGenerateTopics] = useState<string[] | null>(null);
   const { planId } = usePlanContext();
+  const { canManage } = useUserRole();
   const allowedScraperIds = useMemo(() => {
     const allowed = PLANS[planId].limits.allowedScrapers;
     return allowed ? [...allowed] : ALL_SCRAPERS.map((s) => s.id);
@@ -479,266 +481,288 @@ export default function PromptsPage() {
 
   return (
     <div className="space-y-6">
-      {/* Add Prompt + AI Generate */}
-      <div className="grid gap-4 md:grid-cols-2">
-        {/* Manual Add */}
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="flex items-center gap-2 text-base">
-              <Plus className="h-4 w-4" />
-              Add Prompt
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              <Input
-                placeholder="e.g. Best project management tools for startups"
-                value={manualText}
-                onChange={(e) => setManualText(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && manualText.trim()) handleAddManualPrompt();
-                }}
-              />
+      {/* Read-only banner — non-admin / non-manager roles can't INSERT into
+          prompts / prompt_sets at the DB layer (RLS). We hide the write
+          controls below so they don't hit a generic "Failed to save"
+          toast after the request gets rejected. */}
+      {!canManage && (
+        <div className="flex items-start gap-3 rounded-lg border bg-muted/40 p-4 text-sm">
+          <Lock className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+          <div>
+            <p className="font-medium">Read-only access</p>
+            <p className="mt-1 text-muted-foreground">
+              Your role can view tracked prompts but not add, edit, or delete them. Ask an admin or
+              manager to make changes.
+            </p>
+          </div>
+        </div>
+      )}
 
+      {/* Add Prompt + AI Generate */}
+      {canManage && (
+        <div className="grid gap-4 md:grid-cols-2">
+          {/* Manual Add */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-base">
+                <Plus className="h-4 w-4" />
+                Add Prompt
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
               <div className="space-y-3">
-                {/* Topic */}
-                <div>
-                  <label className="mb-1.5 block text-xs font-medium text-muted-foreground">
-                    Topic
-                  </label>
-                  {topics.length > 0 ? (
-                    <Select value={manualCategory} onValueChange={(v) => v && setManualCategory(v)}>
+                <Input
+                  placeholder="e.g. Best project management tools for startups"
+                  value={manualText}
+                  onChange={(e) => setManualText(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && manualText.trim()) handleAddManualPrompt();
+                  }}
+                />
+
+                <div className="space-y-3">
+                  {/* Topic */}
+                  <div>
+                    <label className="mb-1.5 block text-xs font-medium text-muted-foreground">
+                      Topic
+                    </label>
+                    {topics.length > 0 ? (
+                      <Select
+                        value={manualCategory}
+                        onValueChange={(v) => v && setManualCategory(v)}
+                      >
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="Select a topic" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {topics.map((topic) => (
+                            <SelectItem key={topic.id} value={topic.name}>
+                              {topic.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    ) : (
+                      <p className="text-xs text-muted-foreground py-2">
+                        No topics defined yet. Add topics in brand settings.
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Platform & Models — combined select */}
+                  <div>
+                    <label className="mb-1.5 block text-xs font-medium text-muted-foreground">
+                      Platform & Models
+                    </label>
+                    <Select
+                      value="__placeholder__"
+                      onValueChange={(v) => {
+                        if (!v || v === '__placeholder__') return;
+                        if (visibleModels.some((m) => m.id === v) && !manualModels.includes(v)) {
+                          setManualModels((prev) => [...prev, v]);
+                        } else if (
+                          visibleScrapers.some((s) => s.id === v) &&
+                          !manualScrapers.includes(v)
+                        ) {
+                          setManualScrapers((prev) => [...prev, v]);
+                        }
+                      }}
+                    >
                       <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Select a topic" />
+                        <span className="truncate text-muted-foreground">
+                          {manualModels.length + manualScrapers.length > 0
+                            ? `${manualModels.length + manualScrapers.length} selected`
+                            : 'Select platform & models'}
+                        </span>
                       </SelectTrigger>
                       <SelectContent>
-                        {topics.map((topic) => (
-                          <SelectItem key={topic.id} value={topic.name}>
-                            {topic.name}
-                          </SelectItem>
-                        ))}
+                        {SCRAPER_GROUPS.map((group) => {
+                          const scrapers = group.scrapers.filter((s) =>
+                            visibleScrapers.some((vs) => vs.id === s.id),
+                          );
+                          if (scrapers.length === 0) return null;
+                          return (
+                            <div key={group.provider}>
+                              <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">
+                                {group.provider} (Scraper)
+                              </div>
+                              {scrapers.map((s) => (
+                                <SelectItem
+                                  key={s.id}
+                                  value={s.id}
+                                  disabled={manualScrapers.includes(s.id)}
+                                >
+                                  <div>
+                                    <div>{s.label}</div>
+                                    <div className="text-[10px] text-muted-foreground font-mono">
+                                      {s.id}
+                                    </div>
+                                  </div>
+                                </SelectItem>
+                              ))}
+                            </div>
+                          );
+                        })}
+                        {MODEL_GROUPS.map((group) => {
+                          const groupModels = group.models.filter((m) =>
+                            visibleModels.some((vm) => vm.id === m.id),
+                          );
+                          if (groupModels.length === 0) return null;
+                          return (
+                            <div key={group.provider}>
+                              <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">
+                                {group.provider} (API)
+                              </div>
+                              {groupModels.map((m) => (
+                                <SelectItem
+                                  key={m.id}
+                                  value={m.id}
+                                  disabled={manualModels.includes(m.id)}
+                                >
+                                  <div>
+                                    <div>{m.label}</div>
+                                    <div className="text-[10px] text-muted-foreground font-mono">
+                                      {m.id}
+                                    </div>
+                                  </div>
+                                </SelectItem>
+                              ))}
+                            </div>
+                          );
+                        })}
                       </SelectContent>
                     </Select>
-                  ) : (
-                    <p className="text-xs text-muted-foreground py-2">
-                      No topics defined yet. Add topics in brand settings.
-                    </p>
-                  )}
+                    {(manualModels.length > 0 || manualScrapers.length > 0) && (
+                      <div className="mt-1.5 flex flex-wrap gap-1">
+                        {manualScrapers.map((id) => {
+                          const s = ALL_SCRAPERS.find((as_) => as_.id === id);
+                          return (
+                            <Badge key={id} variant="outline" className="gap-1 text-xs">
+                              {s?.label ?? id}
+                              <button
+                                type="button"
+                                onClick={() => setManualScrapers((p) => p.filter((i) => i !== id))}
+                              >
+                                <X className="h-3 w-3" />
+                              </button>
+                            </Badge>
+                          );
+                        })}
+                        {manualModels.map((id) => {
+                          const m = ALL_MODELS.find((am) => am.id === id);
+                          return (
+                            <Badge key={id} variant="secondary" className="gap-1 text-xs">
+                              {m?.label ?? id}
+                              <button
+                                type="button"
+                                onClick={() => setManualModels((p) => p.filter((i) => i !== id))}
+                              >
+                                <X className="h-3 w-3" />
+                              </button>
+                            </Badge>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
                 </div>
 
-                {/* Platform & Models — combined select */}
-                <div>
-                  <label className="mb-1.5 block text-xs font-medium text-muted-foreground">
-                    Platform & Models
-                  </label>
-                  <Select
-                    value="__placeholder__"
-                    onValueChange={(v) => {
-                      if (!v || v === '__placeholder__') return;
-                      if (visibleModels.some((m) => m.id === v) && !manualModels.includes(v)) {
-                        setManualModels((prev) => [...prev, v]);
-                      } else if (
-                        visibleScrapers.some((s) => s.id === v) &&
-                        !manualScrapers.includes(v)
-                      ) {
-                        setManualScrapers((prev) => [...prev, v]);
-                      }
-                    }}
-                  >
-                    <SelectTrigger className="w-full">
-                      <span className="truncate text-muted-foreground">
-                        {manualModels.length + manualScrapers.length > 0
-                          ? `${manualModels.length + manualScrapers.length} selected`
-                          : 'Select platform & models'}
-                      </span>
-                    </SelectTrigger>
-                    <SelectContent>
-                      {SCRAPER_GROUPS.map((group) => {
-                        const scrapers = group.scrapers.filter((s) =>
-                          visibleScrapers.some((vs) => vs.id === s.id),
-                        );
-                        if (scrapers.length === 0) return null;
+                <Button
+                  onClick={handleAddManualPrompt}
+                  disabled={
+                    isAddingManual ||
+                    !manualText.trim() ||
+                    (manualScrapers.length === 0 && manualModels.length === 0)
+                  }
+                  className="w-full"
+                >
+                  {isAddingManual ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Plus className="mr-2 h-4 w-4" />
+                  )}
+                  Add Prompt
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* AI Generate */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-base">
+                <Sparkles className="h-4 w-4" />
+                AI Generate
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                <p className="text-sm text-muted-foreground">
+                  Select topics and generate 5 optimized search prompts per topic using AI.
+                </p>
+                {topics.length > 0 ? (
+                  <div>
+                    <label className="mb-1.5 block text-xs font-medium text-muted-foreground">
+                      Topics
+                    </label>
+                    <div className="flex flex-wrap gap-1.5">
+                      {topics.map((topic) => {
+                        const selected = generateTopics?.includes(topic.name) ?? false;
                         return (
-                          <div key={group.provider}>
-                            <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">
-                              {group.provider} (Scraper)
-                            </div>
-                            {scrapers.map((s) => (
-                              <SelectItem
-                                key={s.id}
-                                value={s.id}
-                                disabled={manualScrapers.includes(s.id)}
-                              >
-                                <div>
-                                  <div>{s.label}</div>
-                                  <div className="text-[10px] text-muted-foreground font-mono">
-                                    {s.id}
-                                  </div>
-                                </div>
-                              </SelectItem>
-                            ))}
-                          </div>
-                        );
-                      })}
-                      {MODEL_GROUPS.map((group) => {
-                        const groupModels = group.models.filter((m) =>
-                          visibleModels.some((vm) => vm.id === m.id),
-                        );
-                        if (groupModels.length === 0) return null;
-                        return (
-                          <div key={group.provider}>
-                            <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">
-                              {group.provider} (API)
-                            </div>
-                            {groupModels.map((m) => (
-                              <SelectItem
-                                key={m.id}
-                                value={m.id}
-                                disabled={manualModels.includes(m.id)}
-                              >
-                                <div>
-                                  <div>{m.label}</div>
-                                  <div className="text-[10px] text-muted-foreground font-mono">
-                                    {m.id}
-                                  </div>
-                                </div>
-                              </SelectItem>
-                            ))}
-                          </div>
-                        );
-                      })}
-                    </SelectContent>
-                  </Select>
-                  {(manualModels.length > 0 || manualScrapers.length > 0) && (
-                    <div className="mt-1.5 flex flex-wrap gap-1">
-                      {manualScrapers.map((id) => {
-                        const s = ALL_SCRAPERS.find((as_) => as_.id === id);
-                        return (
-                          <Badge key={id} variant="outline" className="gap-1 text-xs">
-                            {s?.label ?? id}
-                            <button
-                              type="button"
-                              onClick={() => setManualScrapers((p) => p.filter((i) => i !== id))}
-                            >
-                              <X className="h-3 w-3" />
-                            </button>
-                          </Badge>
-                        );
-                      })}
-                      {manualModels.map((id) => {
-                        const m = ALL_MODELS.find((am) => am.id === id);
-                        return (
-                          <Badge key={id} variant="secondary" className="gap-1 text-xs">
-                            {m?.label ?? id}
-                            <button
-                              type="button"
-                              onClick={() => setManualModels((p) => p.filter((i) => i !== id))}
-                            >
-                              <X className="h-3 w-3" />
-                            </button>
+                          <Badge
+                            key={topic.id}
+                            variant={selected ? 'default' : 'outline'}
+                            className="cursor-pointer select-none"
+                            onClick={() =>
+                              setGenerateTopics((prev) =>
+                                selected
+                                  ? (prev ?? []).filter((t) => t !== topic.name)
+                                  : [...(prev ?? []), topic.name],
+                              )
+                            }
+                          >
+                            {topic.name}
                           </Badge>
                         );
                       })}
                     </div>
-                  )}
-                </div>
-              </div>
-
-              <Button
-                onClick={handleAddManualPrompt}
-                disabled={
-                  isAddingManual ||
-                  !manualText.trim() ||
-                  (manualScrapers.length === 0 && manualModels.length === 0)
-                }
-                className="w-full"
-              >
-                {isAddingManual ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : (
-                  <Plus className="mr-2 h-4 w-4" />
-                )}
-                Add Prompt
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* AI Generate */}
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="flex items-center gap-2 text-base">
-              <Sparkles className="h-4 w-4" />
-              AI Generate
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              <p className="text-sm text-muted-foreground">
-                Select topics and generate 5 optimized search prompts per topic using AI.
-              </p>
-              {topics.length > 0 ? (
-                <div>
-                  <label className="mb-1.5 block text-xs font-medium text-muted-foreground">
-                    Topics
-                  </label>
-                  <div className="flex flex-wrap gap-1.5">
-                    {topics.map((topic) => {
-                      const selected = generateTopics?.includes(topic.name) ?? false;
-                      return (
-                        <Badge
-                          key={topic.id}
-                          variant={selected ? 'default' : 'outline'}
-                          className="cursor-pointer select-none"
-                          onClick={() =>
-                            setGenerateTopics((prev) =>
-                              selected
-                                ? (prev ?? []).filter((t) => t !== topic.name)
-                                : [...(prev ?? []), topic.name],
-                            )
-                          }
-                        >
-                          {topic.name}
-                        </Badge>
-                      );
-                    })}
+                    {generateTopics && generateTopics.length > 0 && (
+                      <p className="mt-1.5 text-xs text-muted-foreground">
+                        {generateTopics.length} topic{generateTopics.length !== 1 ? 's' : ''}{' '}
+                        selected — {generateTopics.length * 5} prompts will be generated
+                      </p>
+                    )}
                   </div>
-                  {generateTopics && generateTopics.length > 0 && (
-                    <p className="mt-1.5 text-xs text-muted-foreground">
-                      {generateTopics.length} topic{generateTopics.length !== 1 ? 's' : ''} selected
-                      — {generateTopics.length * 5} prompts will be generated
-                    </p>
-                  )}
-                </div>
-              ) : (
-                <p className="text-xs text-muted-foreground py-2">
-                  No topics defined yet. Add topics in brand settings first.
-                </p>
-              )}
-              <Button
-                onClick={handleGenerate}
-                disabled={isGenerating || !generateTopics || generateTopics.length === 0}
-                className="w-full"
-              >
-                {isGenerating ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Generating...
-                  </>
                 ) : (
-                  <>
-                    <Sparkles className="mr-2 h-4 w-4" />
-                    Generate Prompts
-                  </>
+                  <p className="text-xs text-muted-foreground py-2">
+                    No topics defined yet. Add topics in brand settings first.
+                  </p>
                 )}
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+                <Button
+                  onClick={handleGenerate}
+                  disabled={isGenerating || !generateTopics || generateTopics.length === 0}
+                  className="w-full"
+                >
+                  {isGenerating ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Generating...
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="mr-2 h-4 w-4" />
+                      Generate Prompts
+                    </>
+                  )}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       {/* AI Suggestions Review (shown only when generated) */}
-      {suggestions.length > 0 && (
+      {canManage && suggestions.length > 0 && (
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-base">Review AI Suggestions</CardTitle>

@@ -15,7 +15,8 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
-import { Check, Loader2, Pencil, Plus, Tag, Trash2, X } from 'lucide-react';
+import { Check, Loader2, Lock, Pencil, Plus, Tag, Trash2, X } from 'lucide-react';
+import { useUserRole } from '@/hooks/use-user-role';
 import {
   Dialog,
   DialogClose,
@@ -41,6 +42,7 @@ export default function BrandTopicsPage({ params }: PageProps) {
   const [newName, setNewName] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
+  const { canManage } = useUserRole();
 
   const load = useCallback(async () => {
     setIsLoading(true);
@@ -172,56 +174,60 @@ export default function BrandTopicsPage({ params }: PageProps) {
                     ) : (
                       <>
                         <p className="flex-1 truncate text-sm font-medium">{topic.name}</p>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-7 w-7 shrink-0"
-                          onClick={() => {
-                            setEditingId(topic.id);
-                            setEditName(topic.name);
-                          }}
-                        >
-                          <Pencil className="h-3.5 w-3.5" />
-                        </Button>
-                        <Dialog>
-                          <DialogTrigger
-                            render={
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-7 w-7 shrink-0 text-destructive hover:text-destructive"
-                              />
-                            }
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </DialogTrigger>
-                          <DialogContent className="sm:max-w-sm">
-                            <DialogHeader>
-                              <DialogTitle>Delete Topic</DialogTitle>
-                              <DialogDescription>
-                                Are you sure you want to delete &quot;{topic.name}&quot;?
-                                {(promptCounts[topic.id] ?? 0) > 0
-                                  ? ` ${promptCounts[topic.id]} prompt${promptCounts[topic.id] === 1 ? '' : 's'} using this topic will become uncategorized.`
-                                  : ' No prompts are using this topic.'}
-                              </DialogDescription>
-                            </DialogHeader>
-                            <DialogFooter>
-                              <DialogClose render={<Button variant="outline" />}>
-                                Cancel
-                              </DialogClose>
-                              <DialogClose
+                        {canManage && (
+                          <>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7 shrink-0"
+                              onClick={() => {
+                                setEditingId(topic.id);
+                                setEditName(topic.name);
+                              }}
+                            >
+                              <Pencil className="h-3.5 w-3.5" />
+                            </Button>
+                            <Dialog>
+                              <DialogTrigger
                                 render={
                                   <Button
-                                    variant="destructive"
-                                    onClick={() => handleDelete(topic.id)}
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-7 w-7 shrink-0 text-destructive hover:text-destructive"
                                   />
                                 }
                               >
-                                Delete
-                              </DialogClose>
-                            </DialogFooter>
-                          </DialogContent>
-                        </Dialog>
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </DialogTrigger>
+                              <DialogContent className="sm:max-w-sm">
+                                <DialogHeader>
+                                  <DialogTitle>Delete Topic</DialogTitle>
+                                  <DialogDescription>
+                                    Are you sure you want to delete &quot;{topic.name}&quot;?
+                                    {(promptCounts[topic.id] ?? 0) > 0
+                                      ? ` ${promptCounts[topic.id]} prompt${promptCounts[topic.id] === 1 ? '' : 's'} using this topic will become uncategorized.`
+                                      : ' No prompts are using this topic.'}
+                                  </DialogDescription>
+                                </DialogHeader>
+                                <DialogFooter>
+                                  <DialogClose render={<Button variant="outline" />}>
+                                    Cancel
+                                  </DialogClose>
+                                  <DialogClose
+                                    render={
+                                      <Button
+                                        variant="destructive"
+                                        onClick={() => handleDelete(topic.id)}
+                                      />
+                                    }
+                                  >
+                                    Delete
+                                  </DialogClose>
+                                </DialogFooter>
+                              </DialogContent>
+                            </Dialog>
+                          </>
+                        )}
                       </>
                     )}
                   </div>
@@ -237,33 +243,52 @@ export default function BrandTopicsPage({ params }: PageProps) {
               </div>
             )}
 
-            <Separator />
+            {canManage ? (
+              <>
+                <Separator />
 
-            <div className="space-y-2">
-              <Label className="text-sm font-medium">Add Topic</Label>
-              <div className="flex gap-2">
-                <Input
-                  placeholder="e.g. Industry, Comparison, How-to..."
-                  value={newName}
-                  onChange={(e) => setNewName(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && newName.trim() && handleAdd()}
-                  className="flex-1"
-                />
-                <Button
-                  variant="outline"
-                  onClick={handleAdd}
-                  disabled={isAdding || !newName.trim()}
-                  className="gap-1.5 shrink-0"
-                >
-                  {isAdding ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Plus className="h-4 w-4" />
-                  )}
-                  Add
-                </Button>
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium">Add Topic</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      placeholder="e.g. Industry, Comparison, How-to..."
+                      value={newName}
+                      onChange={(e) => setNewName(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && newName.trim() && handleAdd()}
+                      className="flex-1"
+                    />
+                    <Button
+                      variant="outline"
+                      onClick={handleAdd}
+                      disabled={isAdding || !newName.trim()}
+                      className="gap-1.5 shrink-0"
+                    >
+                      {isAdding ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Plus className="h-4 w-4" />
+                      )}
+                      Add
+                    </Button>
+                  </div>
+                </div>
+              </>
+            ) : (
+              // Read-only banner — non-admin / non-manager roles can't INSERT
+              // into topics at the DB layer (RLS). Hide the Add form and
+              // surface the reason instead of letting them hit a generic
+              // "Failed to add topic" toast.
+              <div className="flex items-start gap-3 rounded-lg border bg-muted/40 p-3 text-sm">
+                <Lock className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+                <div>
+                  <p className="font-medium">Read-only access</p>
+                  <p className="mt-1 text-muted-foreground">
+                    Your role can view topics but not add, rename, or delete them. Ask an admin or
+                    manager to make changes.
+                  </p>
+                </div>
               </div>
-            </div>
+            )}
           </>
         )}
       </CardContent>

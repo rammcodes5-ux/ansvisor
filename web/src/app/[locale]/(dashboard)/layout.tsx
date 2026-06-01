@@ -5,6 +5,7 @@ import { SidebarErrorBoundary } from '@/components/layout/sidebar-error-boundary
 import { MobileNav } from '@/components/layout/mobile-nav';
 import { AuthProvider } from '@/components/providers/auth-provider';
 import { PlanProvider } from '@/components/providers/plan-provider';
+import { RoleProvider, type TeamRole } from '@/components/providers/role-provider';
 import { BrandLoader } from '@/components/providers/brand-loader';
 import { BrandGuard } from '@/components/providers/brand-guard';
 import { getBrands } from '@/lib/actions/brand';
@@ -22,13 +23,15 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
   const { data: profile } = await supabase
     .from('profiles')
-    .select('organization_id, onboarding_completed')
+    .select('organization_id, onboarding_completed, role')
     .eq('id', user.id)
     .single();
 
   if (!profile?.organization_id || !profile?.onboarding_completed) {
     redirect('/dashboard/onboarding');
   }
+
+  const role = (profile.role ?? 'analyst') as TeamRole;
 
   const [{ data: org }, brands] = await Promise.all([
     supabase
@@ -54,24 +57,26 @@ export default async function DashboardLayout({ children }: { children: React.Re
       <AuthProvider user={user} />
       <BrandLoader brands={brands} />
       <PlanProvider planId={planId}>
-        <div className="flex h-screen overflow-hidden">
-          {/* Desktop sidebar */}
-          <div className="hidden md:flex md:flex-shrink-0">
-            <SidebarErrorBoundary>
-              <Sidebar />
-            </SidebarErrorBoundary>
-          </div>
-
-          {/* Main area */}
-          <div className="flex flex-1 flex-col overflow-hidden">
-            <div className="flex h-16 items-center border-b bg-card px-4 gap-3 md:hidden">
-              <MobileNav />
+        <RoleProvider role={role}>
+          <div className="flex h-screen overflow-hidden">
+            {/* Desktop sidebar */}
+            <div className="hidden md:flex md:flex-shrink-0">
+              <SidebarErrorBoundary>
+                <Sidebar />
+              </SidebarErrorBoundary>
             </div>
-            <main className="flex-1 overflow-y-auto bg-background p-6">
-              <BrandGuard>{children}</BrandGuard>
-            </main>
+
+            {/* Main area */}
+            <div className="flex flex-1 flex-col overflow-hidden">
+              <div className="flex h-16 items-center border-b bg-card px-4 gap-3 md:hidden">
+                <MobileNav />
+              </div>
+              <main className="flex-1 overflow-y-auto bg-background p-6">
+                <BrandGuard>{children}</BrandGuard>
+              </main>
+            </div>
           </div>
-        </div>
+        </RoleProvider>
       </PlanProvider>
     </>
   );
