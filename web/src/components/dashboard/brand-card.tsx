@@ -35,7 +35,7 @@ export function BrandCard({ brand }: BrandCardProps) {
       className={cn(
         'overflow-hidden rounded-xl border bg-card transition-all',
         'hover:border-primary/40 hover:shadow-sm',
-        isActive && 'ring-2 ring-primary border-primary/60',
+        isActive && 'ring-1 ring-primary/40 border-primary/40',
       )}
     >
       <div className="flex items-start gap-3 px-4 py-3.5">
