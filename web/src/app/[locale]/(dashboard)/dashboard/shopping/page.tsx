@@ -22,6 +22,10 @@ import {
   Download,
   ExternalLink,
   Layers,
+  Target,
+  Search,
+  Calendar,
+  Globe,
 } from 'lucide-react';
 import { useBrandStore } from '@/stores/use-brand-store';
 import { useFeatureGate } from '@/hooks/use-feature-gate';
@@ -32,12 +36,15 @@ import {
   getOwnProducts,
   getCompetitorProducts,
   getCompetitorSummary,
+  getCardEligiblePrompts,
   type ShoppingChartData,
   type ShoppingDatePreset,
   type ShoppingFilters,
   type ShoppingKpis,
   type ShoppingProduct,
   type CompetitorShoppingSummary,
+  type CardEligiblePromptRow,
+  type CardEligiblePromptsResponse,
 } from '@/lib/actions/shopping';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -51,6 +58,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { Link } from '@/i18n/navigation';
 import { Button, buttonVariants } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Table,
@@ -68,6 +76,11 @@ import {
   SheetDescription,
 } from '@/components/ui/sheet';
 import { CodeBlock, CodeBlockCode } from '@/components/ui/code-block';
+import {
+  AIProviderAvatar,
+  resolveAIProvider,
+  getAIProviderDisplayName,
+} from '@/components/ai-provider-avatar';
 import { toCsv } from '@/lib/csv';
 
 const DATE_PRESETS: ShoppingDatePreset[] = ['7d', '30d', '90d', 'all'];
@@ -84,6 +97,13 @@ const TOOLTIP_STYLE = {
   color: 'var(--foreground)',
 } as const;
 
+function getDomainName(url: string): string {
+  try {
+    return new URL(url).hostname.replace('www.', '');
+  } catch {
+    return url;
+  }
+}
 export default function ShoppingPage() {
   const t = useTranslations('shopping');
   const { activeBrandId } = useBrandStore();
@@ -105,6 +125,7 @@ export default function ShoppingPage() {
   const [ownProducts, setOwnProducts] = useState<ShoppingProduct[]>([]);
   const [competitorProducts, setCompetitorProducts] = useState<ShoppingProduct[]>([]);
   const [competitorSummary, setCompetitorSummary] = useState<CompetitorShoppingSummary[]>([]);
+  const [promptsData, setPromptsData] = useState<CardEligiblePromptsResponse | null>(null);
   const [tableLoading, setTableLoading] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<ShoppingProduct | null>(null);
   const [activeTab, setActiveTab] = useState<string>('overview');
@@ -156,6 +177,7 @@ export default function ShoppingPage() {
           getOwnProducts(activeBrandId, filters),
           getCompetitorProducts(activeBrandId, filters),
           getCompetitorSummary(activeBrandId, filters),
+          getCardEligiblePrompts(activeBrandId, filters),
         );
       }
 
@@ -164,10 +186,11 @@ export default function ShoppingPage() {
       if (reqId === reqIdRef.current) {
         setKpis(results[0]);
         setCharts(results[1]);
-        if (hasFullAccess && results.length >= 5) {
+        if (hasFullAccess && results.length >= 6) {
           setOwnProducts(results[2] as ShoppingProduct[]);
           setCompetitorProducts(results[3] as ShoppingProduct[]);
           setCompetitorSummary(results[4] as CompetitorShoppingSummary[]);
+          setPromptsData(results[5] as CardEligiblePromptsResponse);
         }
       }
     } finally {
@@ -218,33 +241,56 @@ export default function ShoppingPage() {
         <EmptyState title={t('emptyTitle')} description={t('emptyDescription')} />
       ) : (
         <>
-          <KpiGrid t={t} kpis={kpis} loading={loading} hasFullAccess={hasFullAccess} />
+          <KpiGrid
+            t={t}
+            kpis={kpis}
+            loading={loading}
+            hasFullAccess={hasFullAccess}
+            triggerRate={promptsData?.triggerRate}
+          />
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+            <TabsList>
+              <TabsTrigger value="overview">{t('tabOverview')}</TabsTrigger>
+              <TabsTrigger value="prompts">{t('tabPrompts')}</TabsTrigger>
+              <TabsTrigger value="own_products">{t('tabMyProducts')}</TabsTrigger>
+              <TabsTrigger value="competitors">{t('tabCompetitors')}</TabsTrigger>
+            </TabsList>
 
-          {hasFullAccess ? (
-            <>
-              <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-                <TabsList>
-                  <TabsTrigger value="overview">{t('tabOverview')}</TabsTrigger>
-                  <TabsTrigger value="own_products">{t('tabMyProducts')}</TabsTrigger>
-                  <TabsTrigger value="competitors">{t('tabCompetitors')}</TabsTrigger>
-                </TabsList>
+            <TabsContent value="overview" className="space-y-6">
+              {hasFullAccess ? (
+                <div className="grid gap-4 lg:grid-cols-2">
+                  <PlatformCardRateChart
+                    t={t}
+                    data={charts?.platformCardRate ?? []}
+                    loading={loading}
+                  />
+                  <OwnPresenceTrendChart
+                    t={t}
+                    data={charts?.ownPresenceTrend ?? []}
+                    loading={loading}
+                  />
+                </div>
+              ) : (
+                <UpgradeCard t={t} requiredPlan={requiredPlanFor('shopping_analytics')} />
+              )}
+            </TabsContent>
 
-                <TabsContent value="overview" className="space-y-6">
-                  <div className="grid gap-4 lg:grid-cols-2">
-                    <PlatformCardRateChart
-                      t={t}
-                      data={charts?.platformCardRate ?? []}
-                      loading={loading}
-                    />
-                    <OwnPresenceTrendChart
-                      t={t}
-                      data={charts?.ownPresenceTrend ?? []}
-                      loading={loading}
-                    />
-                  </div>
-                </TabsContent>
+            <TabsContent value="prompts" className="space-y-6">
+              {hasFullAccess ? (
+                <PromptsTabContent
+                  t={t}
+                  brandId={activeBrandId}
+                  promptsData={promptsData}
+                  loading={tableLoading}
+                />
+              ) : (
+                <UpgradeCard t={t} requiredPlan={requiredPlanFor('shopping_analytics')} />
+              )}
+            </TabsContent>
 
-                <TabsContent value="own_products" className="space-y-6">
+            <TabsContent value="own_products" className="space-y-6">
+              {hasFullAccess ? (
+                <>
                   <div className="flex items-center justify-between">
                     <h2 className="text-lg font-semibold">{t('tabMyProducts')}</h2>
                     <Button
@@ -294,9 +340,15 @@ export default function ShoppingPage() {
                     loading={tableLoading}
                     onRowClick={setSelectedProduct}
                   />
-                </TabsContent>
+                </>
+              ) : (
+                <UpgradeCard t={t} requiredPlan={requiredPlanFor('shopping_analytics')} />
+              )}
+            </TabsContent>
 
-                <TabsContent value="competitors" className="space-y-6">
+            <TabsContent value="competitors" className="space-y-6">
+              {hasFullAccess ? (
+                <>
                   <CompetitorSummaryList
                     t={t}
                     summaries={competitorSummary}
@@ -355,22 +407,327 @@ export default function ShoppingPage() {
                     onRowClick={setSelectedProduct}
                     showCompetitorName
                   />
-                </TabsContent>
-              </Tabs>
+                </>
+              ) : (
+                <UpgradeCard t={t} requiredPlan={requiredPlanFor('shopping_analytics')} />
+              )}
+            </TabsContent>
+          </Tabs>
 
-              <ProductAppearancesDrawer
-                t={t}
-                product={selectedProduct}
-                onOpenChange={(open) => {
-                  if (!open) setSelectedProduct(null);
-                }}
-              />
-            </>
-          ) : (
-            <UpgradeCard t={t} requiredPlan={requiredPlanFor('shopping_analytics')} />
+          {hasFullAccess && (
+            <ProductAppearancesDrawer
+              t={t}
+              product={selectedProduct}
+              onOpenChange={(open) => {
+                if (!open) setSelectedProduct(null);
+              }}
+            />
           )}
         </>
       )}
+    </div>
+  );
+}
+
+function PromptsTabContent({
+  t,
+  brandId,
+  promptsData,
+  loading,
+}: {
+  t: ReturnType<typeof useTranslations<'shopping'>>;
+  brandId: string;
+  promptsData: CardEligiblePromptsResponse | null;
+  loading: boolean;
+}) {
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedPrompt, setSelectedPrompt] = useState<CardEligiblePromptRow | null>(null);
+
+  const brand = useBrandStore((s) => s.brands.find((b) => b.id === brandId) ?? null);
+  const brandSlug = brand?.slug || brandId;
+
+  const filteredPrompts = useMemo(() => {
+    if (!promptsData?.prompts) return [];
+    const q = searchQuery.toLowerCase().trim();
+    if (!q) return promptsData.prompts;
+    return promptsData.prompts.filter(
+      (p) => p.promptText.toLowerCase().includes(q) || p.topic.toLowerCase().includes(q),
+    );
+  }, [promptsData, searchQuery]);
+
+  const handleExportCsv = useCallback(() => {
+    if (!promptsData?.prompts.length) return;
+    const exportRows = promptsData.prompts.map((p) => ({
+      prompt: p.promptText,
+      topic: p.topic,
+      platforms: p.platforms.join('; '),
+      total_cards: p.totalCards,
+      own_cards: p.ownCardsCount,
+      competitor_cards: p.competitorCardsCount,
+      other_cards: p.otherCardsCount,
+      last_seen: p.lastTriggered ? p.lastTriggered.slice(0, 10) : '—',
+    }));
+    const headers = [
+      'prompt',
+      'topic',
+      'platforms',
+      'total_cards',
+      'own_cards',
+      'competitor_cards',
+      'other_cards',
+      'last_seen',
+    ];
+    const csv = toCsv(exportRows, headers);
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    const date = new Date().toISOString().slice(0, 10);
+    link.setAttribute('download', `ansvisor_${brandSlug}_shopping_prompts_${date}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }, [promptsData, brandSlug]);
+
+  if (loading && !promptsData) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between gap-4">
+          <Skeleton className="h-9 w-64" />
+          <Skeleton className="h-9 w-32" />
+        </div>
+        <div className="space-y-2">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <Skeleton key={i} className="h-12 w-full" />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="relative flex-1 max-w-sm">
+          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder={t('searchPrompts')}
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-8"
+          />
+        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleExportCsv}
+          disabled={!promptsData?.prompts.length}
+          className="gap-1.5"
+        >
+          <Download className="h-3.5 w-3.5" />
+          {t('exportCsv')}
+        </Button>
+      </div>
+
+      <div className="rounded-md border bg-card">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>{t('tablePrompt')}</TableHead>
+              <TableHead>{t('tableTopic')}</TableHead>
+              <TableHead>{t('tablePlatforms')}</TableHead>
+              <TableHead className="text-right">{t('tableTotalCards')}</TableHead>
+              <TableHead className="w-[120px]">{t('tableSplitBar')}</TableHead>
+              <TableHead className="text-right">{t('tableLastSeen')}</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {loading ? (
+              <TableRow>
+                <TableCell colSpan={6} className="h-24 text-center">
+                  {t('common.loading')}
+                </TableCell>
+              </TableRow>
+            ) : filteredPrompts.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={6} className="h-32 text-center">
+                  <div className="flex flex-col items-center justify-center text-muted-foreground">
+                    <ShoppingBag className="h-8 w-8 opacity-40 mb-2" />
+                    <p className="font-medium text-sm">{t('noPromptsFound')}</p>
+                    <p className="text-xs mt-1">{t('noPromptsFoundSub')}</p>
+                  </div>
+                </TableCell>
+              </TableRow>
+            ) : (
+              filteredPrompts.map((row) => {
+                const ownPct = row.totalCards > 0 ? (row.ownCardsCount / row.totalCards) * 100 : 0;
+                const compPct =
+                  row.totalCards > 0 ? (row.competitorCardsCount / row.totalCards) * 100 : 0;
+                const otherPct =
+                  row.totalCards > 0 ? (row.otherCardsCount / row.totalCards) * 100 : 0;
+
+                return (
+                  <TableRow
+                    key={row.promptId}
+                    className="cursor-pointer transition-colors hover:bg-muted/50"
+                    onClick={() => setSelectedPrompt(row)}
+                  >
+                    <TableCell className="max-w-[320px]">
+                      <Link
+                        href={`/dashboard/prompts/${row.promptId}`}
+                        className="font-medium text-primary hover:underline block truncate"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        {row.promptText}
+                      </Link>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="outline" className="text-xs font-normal">
+                        {row.topic}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-1">
+                        {row.platforms.map((p) => (
+                          <AIProviderAvatar
+                            key={p}
+                            provider={resolveAIProvider(p)}
+                            className="h-5 w-5 border"
+                          />
+                        ))}
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-right font-medium tabular-nums">
+                      {row.totalCards.toLocaleString()}
+                    </TableCell>
+                    <TableCell>
+                      <div
+                        className="flex h-2 w-24 overflow-hidden rounded-full bg-muted-foreground/10"
+                        title={`Own: ${row.ownCardsCount}, Competitors: ${row.competitorCardsCount}, Other: ${row.otherCardsCount}`}
+                      >
+                        {ownPct > 0 && (
+                          <div className="h-full bg-primary" style={{ width: `${ownPct}%` }} />
+                        )}
+                        {compPct > 0 && (
+                          <div className="h-full bg-orange-500" style={{ width: `${compPct}%` }} />
+                        )}
+                        {otherPct > 0 && (
+                          <div
+                            className="h-full bg-muted-foreground/40"
+                            style={{ width: `${otherPct}%` }}
+                          />
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-right text-xs text-muted-foreground tabular-nums">
+                      {row.lastTriggered ? row.lastTriggered.slice(0, 10) : '—'}
+                    </TableCell>
+                  </TableRow>
+                );
+              })
+            )}
+          </TableBody>
+        </Table>
+      </div>
+
+      <Sheet open={!!selectedPrompt} onOpenChange={(open) => !open && setSelectedPrompt(null)}>
+        <SheetContent className="w-full sm:max-w-md overflow-y-auto px-4">
+          <SheetHeader className="pb-4 border-b">
+            <SheetTitle>{t('drawerTitle')}</SheetTitle>
+            <SheetDescription>{t('drawerSubtitle')}</SheetDescription>
+          </SheetHeader>
+          {selectedPrompt && (
+            <div className="space-y-6 py-4">
+              <div>
+                <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">
+                  {t('tablePrompt')}
+                </h4>
+                <p className="text-sm font-medium text-foreground bg-muted/30 rounded-lg p-3 border">
+                  {selectedPrompt.promptText}
+                </p>
+              </div>
+
+              <div className="space-y-4">
+                {selectedPrompt.appearances.map((app) => (
+                  <div key={app.promptResultId} className="rounded-lg border bg-card p-4 space-y-3">
+                    <div className="flex items-center justify-between border-b pb-2 text-xs">
+                      <div className="flex items-center gap-1.5 font-medium text-foreground">
+                        <AIProviderAvatar
+                          provider={resolveAIProvider(app.platform)}
+                          className="h-4.5 w-4.5"
+                        />
+                        <span>{getAIProviderDisplayName(resolveAIProvider(app.platform))}</span>
+                      </div>
+                      <div className="flex items-center gap-3 text-muted-foreground">
+                        {app.region && (
+                          <span className="flex items-center gap-1">
+                            <Globe className="h-3 w-3" />
+                            {app.region}
+                          </span>
+                        )}
+                        <span className="flex items-center gap-1">
+                          <Calendar className="h-3 w-3" />
+                          {new Date(app.timestamp).toLocaleString(undefined, {
+                            month: 'short',
+                            day: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          })}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="space-y-3">
+                      <h5 className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">
+                        {t('drawerCardsTitle')} ({app.cards.length})
+                      </h5>
+                      <div className="grid gap-2">
+                        {app.cards.map((card) => (
+                          <div
+                            key={card.id}
+                            className="flex gap-3 rounded-md border bg-muted/10 p-2 text-xs"
+                          >
+                            {card.imageUrl ? (
+                              <img
+                                src={card.imageUrl}
+                                alt=""
+                                className="h-12 w-12 rounded border object-contain bg-white shrink-0"
+                                onError={(e) => {
+                                  (e.target as HTMLElement).style.display = 'none';
+                                }}
+                              />
+                            ) : null}
+                            <div className="flex flex-1 flex-col justify-between min-w-0">
+                              <span className="font-medium text-foreground line-clamp-1">
+                                {card.title}
+                              </span>
+                              <div className="flex items-center justify-between mt-1 text-muted-foreground">
+                                <span className="font-semibold text-foreground">{card.price}</span>
+                                {card.merchantUrl && (
+                                  <a
+                                    href={card.merchantUrl}
+                                    target="_blank"
+                                    rel="noreferrer noopener"
+                                    className="inline-flex items-center gap-0.5 hover:text-primary transition-colors"
+                                  >
+                                    <span>{getDomainName(card.merchantUrl)}</span>
+                                    <ExternalLink className="h-3 w-3" />
+                                  </a>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }
@@ -480,16 +837,18 @@ function KpiGrid({
   kpis,
   loading,
   hasFullAccess,
+  triggerRate,
 }: {
   t: ReturnType<typeof useTranslations<'shopping'>>;
   kpis: ShoppingKpis | null;
   loading: boolean;
   hasFullAccess: boolean;
+  triggerRate?: number;
 }) {
   if (loading && !kpis) {
     return (
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        {Array.from({ length: 4 }).map((_, i) => (
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+        {Array.from({ length: 5 }).map((_, i) => (
           <Skeleton key={i} className="h-[104px]" />
         ))}
       </div>
@@ -502,12 +861,19 @@ function KpiGrid({
   const merchant = kpis?.topMerchant;
 
   return (
-    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
       <KpiCard
         title={t('kpiCardRate')}
         value={formatPercent(cardRate)}
         subtitle={t('kpiCardRateSub')}
         icon={ShoppingBag}
+      />
+      <KpiCard
+        title={t('kpiTriggerRate')}
+        value={triggerRate !== undefined ? formatPercent(triggerRate) : '—'}
+        subtitle={t('kpiTriggerRateSub')}
+        icon={Target}
+        locked={!hasFullAccess}
       />
       <KpiCard
         title={t('kpiOwnProducts')}
