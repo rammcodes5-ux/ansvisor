@@ -1108,10 +1108,14 @@ function PromptResultsGrouped({
       <CardHeader className="pb-2">
         <div className="flex flex-col gap-0.5 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
           <CardTitle className="text-sm font-medium">Prompt Results by Topic</CardTitle>
-          {truncated && (
+          {truncated ? (
             <p className="text-xs text-muted-foreground font-normal">
               Showing {loadedRowCount} of {totalRowCount} rows (newest first). Narrow the date range
               or filters to focus the list.
+            </p>
+          ) : (
+            <p className="text-xs text-muted-foreground font-normal">
+              {totalRowCount} result{totalRowCount !== 1 ? 's' : ''}
             </p>
           )}
         </div>
@@ -1580,7 +1584,7 @@ export default function InsightsPage() {
           <h1 className="text-2xl font-bold tracking-tight">Answer Engine Insights</h1>
 
           <p className="text-muted-foreground text-sm">
-            {brand.name} · Last run: {lastCheckedLabel} · {totalResults} results
+            {brand.name} · Last run: {lastCheckedLabel}
           </p>
         </div>
 
