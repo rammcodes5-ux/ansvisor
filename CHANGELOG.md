@@ -7,6 +7,51 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.3] - 2026-06-14
+
+### Security
+- Internal API routes now enforce org/brand ownership on every request — closed a set of IDOR gaps where a `:brandId` / `:id` / `:jobId` in the URL was trusted without checking it belonged to the caller's organization (tracking, content, and volumes routes) (#246)
+- Enabled Row Level Security on previously exposed tables: `jobs` and `prompt_volumes` (server-only, no client policy) and `competitors` / `topics` (org-membership-scoped member policies mirroring `content_opportunities`) (#250)
+- The on-demand tracking endpoint (`POST /api/tracking/check`) now goes through the same cloud cost guard as `analyze-new` — inactive subscriptions get 402, daily-cap / cooldown get 429 — so it can no longer bypass quota on cloud (#252)
+- Cloro callback (`/cloro/callback`) now verifies the webhook signature before processing (#229)
+- Aggregate / row-fetch RPCs flipped to `SECURITY INVOKER` so they run with the caller's RLS context instead of the definer's (#200)
+- RBAC: write controls on Manage Prompts / Manage Topics are hidden for non-admin/manager roles, and Settings → Agent Save/Remove is gated behind admin (#141, #142)
+
+### Added
+- Shopping: end-to-end Shopping suite — brand-level Shopping mode toggle, ChatGPT Shopping platform, normalized `prompt_result_shopping_cards` with a parser worker, sidebar entry + overview page, My Products / Competitors tabs with brand matching, a card-eligible prompts tab, and Insights isolation (#143, #144, #155, #157, #176, #178; #176 and #178 thanks @Pallavikumarimdb)
+- Agent: `render_chart` tool with inline Recharts visualizations in the chat panel (#138)
+- Content: monthly quota for content brief generation (#224)
+- Citations: "Own domain only" filter to isolate first-party citations (#164, thanks @Pallavikumarimdb)
+- Auth: password visibility toggle on the auth forms (#210, thanks @MaitreyeeDeshmukh)
+- Onboarding: in-app Product Tour button (#225, thanks @gaoharimran29-glitch)
+- MCP: `get_ai_traffic` (#148), `get_prompt_volumes` (#160), `list_shopping_cards` / `get_product_visibility` (#177), and prompt-level performance aggregation (#181) tools — each with a parallel REST endpoint (#148, #177, #181 thanks @Pallavikumarimdb)
+- Tests: Vitest infrastructure for both `web/` (#202) and `server/` (#249), plus unit tests for the CSV serializer (#219), `classifyDomain` / hostname helpers (#248), and `parseResponse` / `countBrandMentions` (#251) (all thanks @Pallavikumarimdb)
+- CI: lint + CI pipeline for the `server/` package (#201, thanks @Pallavikumarimdb)
+- DX: seed now populates raw `prompt_results.shopping_cards` so the demo dashboard shows shopping data out of the box (#232)
+
+### Changed
+- Plans: server plan limits now read from the same source of truth as the web app, so cloud quotas stay in sync (#223)
+- Sidebar: tighter nav-item density (#166), removed the redundant Settings entry (#167), and moved the collapse toggle above the profile row with a restyle (#168)
+- Brands: brand list cards slimmed to a nav-menu shape (#154, #156), typography aligned with the Insights page (#179), softened active-card outline (#175), bolder breadcrumb avatar fallback (#174)
+- Agent: today's date is injected into the system prompt so time-window queries ("last 7 days") resolve correctly (#137)
+
+### Fixed
+- Brands: page no longer crashes — `buttonVariants` is now server-safe (#230)
+- Auth: the full reset-password flow is wired end-to-end (#151, #171)
+- Insights: show platform totals (#172, thanks @nanookclaw); group results by platform on both the insights and prompt-detail views (#235, #237, thanks @VrtxOmega); CSV export writes platform display names instead of raw slugs (#234); moved the raw results count out of the page header (#238)
+- Tracking: cloud snippet points at `api.ansvisor.com` (#218); Shopping sidebar entry is gated by the active brand instead of org-wide (#170, #173)
+- Team settings: show the role label instead of the raw enum value (#147, thanks @akagifreeez)
+- UI: ChatGPT avatar stays visible in light mode (#162, thanks @nanookclaw); `PasswordInput` merges caller `className` via `cn` (#212, thanks @MaitreyeeDeshmukh); icon-only buttons across the dashboard now have accessible names (a11y) (#253, thanks @BharadwajKanneveti)
+- Billing: removed a stray debug log from the Stripe checkout route (#184, thanks @krishnaprasharkp)
+- Self-host: Docker Compose image tags sync with the package version (#185, thanks @xianzuyang9-blip)
+
+### Docs
+- Added a Code of Conduct (Contributor Covenant) (#247), a backend `server/` README (#188, thanks @titanniya542-spec), and fork instructions in CONTRIBUTING (#135, thanks @ayobamiseun)
+- Repo: GitHub issue forms + PR template (#233); README polish — Resources section, single H1 tagline, product-tour badge, banner image, `www` links, and marking the in-product AI assistant as shipped (#165, #197, #207, #214, #215, #216; thanks @beanscg, @n1dhiparate, @xzlknr)
+
+### Contributors
+Huge thanks to everyone who contributed to this release: @Pallavikumarimdb, @MaitreyeeDeshmukh, @n1dhiparate, @nanookclaw, @VrtxOmega, @ayobamiseun, @akagifreeez, @beanscg, @xzlknr, @titanniya542-spec, @xianzuyang9-blip, @krishnaprasharkp, @gaoharimran29-glitch, and @BharadwajKanneveti. 🙌
+
 ## [0.1.2] - 2026-05-31
 
 ### Added
