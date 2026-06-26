@@ -1,7 +1,8 @@
 import { generateObject } from 'ai';
 import { z } from 'zod';
 
-export const AI_VOLUME_MULTIPLIER = parseFloat(process.env.AI_VOLUME_MULTIPLIER || '0.15');
+const parsedMultiplier = parseFloat(process.env.AI_VOLUME_MULTIPLIER);
+export const AI_VOLUME_MULTIPLIER = Number.isFinite(parsedMultiplier) ? parsedMultiplier : 0.15;
 
 export const intentKeywordSchema = z.object({
   intent: z
