@@ -1,6 +1,4 @@
 import { Router } from 'express';
-import { generateObject } from 'ai';
-import { z } from 'zod';
 import { resolveModel } from '../lib/ai-provider.js';
 import { getSearchVolumes } from '../lib/dataforseo.js';
 import { regionToLocationCode, languageToCode } from '../lib/dataforseo-codes.js';
@@ -12,61 +10,9 @@ import {
 } from '../lib/plan-guard.js';
 import supabaseAdmin from '../config/supabase.js';
 import { assertBrandAccess, assertPromptAccess } from '../lib/access.js';
+import { AI_VOLUME_MULTIPLIER, extractIntentKeywords } from '../lib/intent-extraction.js';
 
 const router = Router();
-
-const AI_VOLUME_MULTIPLIER = parseFloat(process.env.AI_VOLUME_MULTIPLIER || '0.15');
-
-const intentKeywordSchema = z.object({
-  intent: z
-    .enum([
-      'comparison',
-      'how-to',
-      'what-is',
-      'best-top',
-      'vs-review',
-      'recommendation',
-      'problem-solving',
-      'other',
-    ])
-    .describe('The primary search intent behind this prompt'),
-  keywords: z
-    .array(
-      z
-        .string()
-        .describe(
-          'A short Google head term — 1 to 3 words, category-level, measurable Google Ads volume',
-        ),
-    )
-    .length(5)
-    .describe(
-      'Five broad, high-volume Google head terms that capture the category the prompt belongs to',
-    ),
-});
-
-const INTENT_SYSTEM_PROMPT = `You are a keyword research expert. Given an AI search prompt, you must:
-
-1. Determine the primary search intent (comparison, how-to, what-is, best-top, vs-review, recommendation, or problem-solving).
-2. Generate exactly 5 short HEAD keywords that a user would type into Google when researching the same category.
-
-CRITICAL: Output HEAD terms, NOT long-tail variants. Google Ads only returns search volume for keywords with measurable demand — long-tail strings like "best portable motion control for travel 2026" return 0. Drop modifiers and surface the underlying noun phrases.
-
-Rules:
-- 1 to 3 words per keyword (strict). Never more than 4.
-- Generic, category-level. No brand names, no years, no superlatives ("best", "top") unless they are part of the natural head term.
-- Lowercase only.
-- Each of the 5 keywords must capture a different angle of the same category.
-- Think "what category does this prompt belong to?" → then list the broadest searchable terms in that category.
-
-Example A — prompt: "What are the best tools for managing remote teams?"
-- Intent: best-top
-- Keywords: ["project management software", "team collaboration tools", "remote work software", "team management apps", "online collaboration platform"]
-
-Example B — prompt: "best portable motion control for travel 2026"
-- Intent: best-top
-- Keywords: ["camera slider", "motion control camera", "video stabilizer", "camera dolly", "time lapse equipment"]
-
-Notice: NO "best", NO "2026", NO "for travel". Strip modifiers, keep the category nouns.`;
 
 function mapVolumeRow(saved) {
   return {
@@ -201,12 +147,7 @@ router.post('/analyze', requireFeature('prompt_volumes'), async (req, res) => {
 
     if (!keywords) {
       const aiModel = resolveModel(model);
-      const { object: intentResult } = await generateObject({
-        model: aiModel,
-        schema: intentKeywordSchema,
-        system: INTENT_SYSTEM_PROMPT,
-        prompt: `Analyze this AI search prompt and extract intent + 5 Google keywords:\n\n"${promptText}"`,
-      });
+      const intentResult = await extractIntentKeywords(promptText, aiModel);
       intent = intentResult.intent;
       keywords = intentResult.keywords;
     }
@@ -323,12 +264,7 @@ router.post('/analyze-batch', requireFeature('prompt_volumes'), async (req, res)
           intent = cached.intent;
           keywords = cached.keywords;
         } else {
-          const { object: intentResult } = await generateObject({
-            model: aiModel,
-            schema: intentKeywordSchema,
-            system: INTENT_SYSTEM_PROMPT,
-            prompt: `Analyze this AI search prompt and extract intent + 5 Google keywords:\n\n"${promptText}"`,
-          });
+          const intentResult = await extractIntentKeywords(promptText, aiModel);
           intent = intentResult.intent;
           keywords = intentResult.keywords;
         }
