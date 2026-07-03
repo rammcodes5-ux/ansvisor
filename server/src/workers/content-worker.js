@@ -7,6 +7,7 @@ import { generateObject } from 'ai';
 import { z } from 'zod';
 import { resolveModel } from '../lib/ai-provider.js';
 import supabaseAdmin from '../config/supabase.js';
+import logger from '../lib/logger.js';
 
 const opportunitySchema = z.object({
   opportunities: z
@@ -269,7 +270,7 @@ Generate actionable content opportunities based on this data. Reference specific
     throw new Error(insertErr.message);
   }
 
-  console.log(`[content] Brand ${brandId}: ${rows.length} opportunities generated`);
+  logger.info({ brandId, generated: rows.length }, 'content opportunities generated');
 
   return { generated: rows.length };
 }

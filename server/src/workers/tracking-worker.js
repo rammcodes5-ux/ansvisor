@@ -9,6 +9,7 @@ import { parseResponse, countBrandMentions } from '../lib/response-parser.js';
 import supabaseAdmin from '../config/supabase.js';
 import { hasFeature, getPlan } from '../config/plans.js';
 import { generateContentOpportunities } from '../lib/opportunity-generator.js';
+import logger from '../lib/logger.js';
 
 function resolveModelPlatform(model) {
   if (model.startsWith('claude-')) return 'claude';
@@ -46,7 +47,7 @@ export async function processTrackingJob({ brandId, promptId, promptIds, job }) 
     .eq('brand_id', brandId);
 
   if (!promptSets || promptSets.length === 0) {
-    console.log(`[tracking] No prompt sets for brand ${brandId}`);
+    logger.info({ brandId }, 'no prompt sets for brand');
     return { resultCount: 0 };
   }
 
@@ -67,7 +68,7 @@ export async function processTrackingJob({ brandId, promptId, promptIds, job }) 
   const { data: prompts, error: promptErr } = await promptsQuery;
   if (promptErr) throw new Error(`Failed to fetch prompts: ${promptErr.message}`);
   if (!prompts || prompts.length === 0) {
-    console.log(`[tracking] No active prompts for brand ${brandId}`);
+    logger.info({ brandId }, 'no active prompts for brand');
     return { resultCount: 0 };
   }
 
@@ -99,7 +100,7 @@ export async function processTrackingJob({ brandId, promptId, promptIds, job }) 
   async function insertResult(row) {
     const { error } = await supabaseAdmin.from('prompt_results').insert(row);
     if (error) {
-      console.error('[tracking] Failed to insert result:', error.message);
+      logger.error({ err: error, brandId }, 'failed to insert tracking result');
       throw error;
     }
     insertedCount++;
@@ -121,8 +122,9 @@ export async function processTrackingJob({ brandId, promptId, promptIds, job }) 
   const webhookUrl = process.env.CLORO_WEBHOOK_URL;
 
   if (scraperTasks.length > 0) {
-    console.log(
-      `[tracking] Submitting ${scraperTasks.length} scraper tasks to Cloro (mode=${webhookUrl ? 'webhook' : 'polling'})...`,
+    logger.info(
+      { brandId, count: scraperTasks.length, mode: webhookUrl ? 'webhook' : 'polling' },
+      'submitting scraper tasks to cloro',
     );
 
     if (job) {
@@ -148,15 +150,16 @@ export async function processTrackingJob({ brandId, promptId, promptIds, job }) 
     const submitted = [];
     for (const sub of submissions) {
       if (sub.status === 'fulfilled') {
-        console.log(
-          `[tracking] Submitted ${sub.value.scraperId} task=${sub.value.taskId} prompt="${sub.value.meta.prompt.text.slice(0, 50)}..."`,
+        logger.debug(
+          { scraperId: sub.value.scraperId, taskId: sub.value.taskId },
+          'submitted scraper task',
         );
         submitted.push(sub.value);
       } else {
         const failedTask = scraperTasks[submissions.indexOf(sub)];
-        console.error(
-          `[tracking] Failed to submit scraper "${failedTask.scraperId}" for "${failedTask.prompt.text.slice(0, 50)}...":`,
-          sub.reason?.message || sub.reason,
+        logger.error(
+          { err: sub.reason, scraperId: failedTask.scraperId },
+          'failed to submit scraper task',
         );
         completedTasks++;
       }
@@ -179,13 +182,14 @@ export async function processTrackingJob({ brandId, promptId, promptIds, job }) 
           .insert(pendingRows);
 
         if (pendingErr) {
-          console.error(
-            '[tracking] Failed to record pending Cloro tasks — webhook results will be dropped:',
-            pendingErr.message,
+          logger.error(
+            { err: pendingErr, brandId },
+            'failed to record pending cloro tasks — webhook results will be dropped',
           );
         } else {
-          console.log(
-            `[tracking] ${submitted.length} pending tasks recorded. Webhook will deliver results.`,
+          logger.info(
+            { brandId, count: submitted.length },
+            'pending cloro tasks recorded; webhook will deliver results',
           );
         }
       }
@@ -227,7 +231,7 @@ export async function processTrackingJob({ brandId, promptId, promptIds, job }) 
           // break the loop early and report the run as finished while tasks are
           // still in flight. Skip this tick and retry on the next poll.
           if (drainErr) {
-            console.warn(`[tracking] Pending-task poll failed, retrying: ${drainErr.message}`);
+            logger.warn({ err: drainErr, brandId }, 'pending-task poll failed, retrying');
             await new Promise((r) => setTimeout(r, drainPollMs));
             continue;
           }
@@ -254,8 +258,9 @@ export async function processTrackingJob({ brandId, promptId, promptIds, job }) 
             lastPending = pending;
             stalledPolls = 0;
           } else if (++stalledPolls >= stallPollLimit) {
-            console.warn(
-              `[tracking] Cloro delivery stalled for brand ${brandId} — ${pending} of ${expectedSubmitted} task(s) never returned; continuing.`,
+            logger.warn(
+              { brandId, pending, expected: expectedSubmitted },
+              'cloro delivery stalled — some tasks never returned; continuing',
             );
             break;
           }
@@ -266,19 +271,18 @@ export async function processTrackingJob({ brandId, promptId, promptIds, job }) 
 
       completedTasks += expectedSubmitted;
     } else {
-      console.log(
-        `[tracking] ${submitted.length}/${scraperTasks.length} tasks submitted, polling for results...`,
+      logger.info(
+        { submitted: submitted.length, total: scraperTasks.length },
+        'tasks submitted, polling for results',
       );
 
       // Polling fallback: wait for each task inline (legacy behavior)
       await Promise.allSettled(
         submitted.map(async ({ taskId, scraperId, meta }) => {
           try {
-            console.log(`[tracking] Polling task=${taskId} scraper=${scraperId}...`);
+            logger.debug({ taskId, scraperId }, 'polling scraper task');
             const aiResponse = await pollScraperResult(taskId, scraperId);
-            console.log(
-              `[tracking] Task=${taskId} scraper=${scraperId} completed, inserting result...`,
-            );
+            logger.debug({ taskId, scraperId }, 'scraper task completed, inserting result');
 
             const mentionCount = countBrandMentions(aiResponse.text, brandInfo);
             const sentimentResult =
@@ -307,9 +311,9 @@ export async function processTrackingJob({ brandId, promptId, promptIds, job }) 
               competitor_mentions: metrics.competitorMentions,
             });
 
-            console.log(`[tracking] Task=${taskId} scraper=${scraperId} result saved.`);
+            logger.debug({ taskId, scraperId }, 'scraper task result saved');
           } catch (err) {
-            console.error(`[tracking] Task=${taskId} scraper=${scraperId} failed: ${err.message}`);
+            logger.error({ err, taskId, scraperId }, 'scraper task failed');
           }
 
           completedTasks++;
@@ -341,7 +345,7 @@ export async function processTrackingJob({ brandId, promptId, promptIds, job }) 
   }
 
   if (modelTasks.length > 0) {
-    console.log(`[tracking] Running ${modelTasks.length} AI model tasks concurrently...`);
+    logger.info({ count: modelTasks.length }, 'running ai model tasks concurrently');
 
     await Promise.allSettled(
       modelTasks.map(async ({ prompt, modelName, region }) => {
@@ -386,10 +390,7 @@ export async function processTrackingJob({ brandId, promptId, promptIds, job }) 
             competitor_mentions: metrics.competitorMentions,
           });
         } catch (err) {
-          console.error(
-            `[tracking] Failed prompt "${prompt.text.slice(0, 50)}..." model=${modelName} region=${region}:`,
-            err.message,
-          );
+          logger.error({ err, model: modelName, region }, 'ai model task failed');
         }
 
         completedTasks++;
@@ -406,7 +407,7 @@ export async function processTrackingJob({ brandId, promptId, promptIds, job }) 
     );
   }
 
-  console.log(`[tracking] Brand ${brandId}: ${insertedCount} results stored`);
+  logger.info({ brandId, resultCount: insertedCount }, 'tracking results stored');
 
   try {
     const { data: profile } = await supabaseAdmin
@@ -426,15 +427,12 @@ export async function processTrackingJob({ brandId, promptId, promptIds, job }) 
       const plan = getPlan(org?.plan);
       if (hasFeature(plan, 'content_optimization')) {
         generateContentOpportunities(brandId).catch((err) => {
-          console.error(
-            `[tracking] Auto opportunity generation failed for brand ${brandId}:`,
-            err.message,
-          );
+          logger.error({ err, brandId }, 'auto opportunity generation failed');
         });
       }
     }
   } catch (err) {
-    console.error('[tracking] Failed to check opportunity generation eligibility:', err.message);
+    logger.error({ err, brandId }, 'failed to check opportunity generation eligibility');
   }
 
   return { resultCount: insertedCount };
