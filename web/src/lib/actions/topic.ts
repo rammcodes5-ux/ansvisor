@@ -45,6 +45,28 @@ export async function getTopics(brandId: string): Promise<Topic[]> {
   return (data ?? []).map((r) => mapTopicRow(r as Record<string, unknown>));
 }
 
+/**
+ * Fetch a single active topic by id, scoped to the brand. Returns null when the
+ * topic doesn't exist, isn't this brand's, or is inactive — the detail page
+ * renders "not found". The `is_active = true` filter mirrors getTopics(), which
+ * the page used before (via .find() over the active list), so inactive topics
+ * stay hidden. Cheaper than fetching the whole list just to read one name.
+ */
+export async function getTopicById(brandId: string, topicId: string): Promise<Topic | null> {
+  const supabase = await createClient();
+
+  const { data, error } = await supabase
+    .from('topics')
+    .select('id, brand_id, name, is_active, created_at')
+    .eq('brand_id', brandId)
+    .eq('id', topicId)
+    .eq('is_active', true)
+    .maybeSingle();
+
+  if (error) throw new Error(error.message);
+  return data ? mapTopicRow(data as Record<string, unknown>) : null;
+}
+
 export async function createTopic(brandId: string, name: string): Promise<Topic> {
   const supabase = await createClient();
 
