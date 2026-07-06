@@ -39,9 +39,7 @@ import { groupResultsByTopic, type PlatformGroup, type PromptGroup } from './gro
 import { useBrandStore } from '@/stores/use-brand-store';
 import {
   getPromptResults,
-  getInsightsSummary,
-  getCompetitorComparison,
-  getShareOfVoiceData,
+  getInsightsData,
   triggerTrackingCheck,
   getJobStatus,
   cancelTrackingJob,
@@ -1285,50 +1283,33 @@ export default function InsightsPage() {
           dateTo,
         };
 
-        const hasFilters = f.datePreset !== 'all' || f.model || f.region || f.topic;
+        const hasFilters = Boolean(f.datePreset !== 'all' || f.model || f.region || f.topic);
 
-        const promises: [
-          Promise<InsightsSummary>,
-          Promise<{ results: PromptResultWithText[]; total: number }>,
-          Promise<CompetitorComparisonData>,
-          Promise<ShareOfVoiceData>,
-          Promise<{ total: number } | null>,
-        ] = [
-          getInsightsSummary(brand.id, filterOpts),
-          getPromptResults(brand.id, {
-            limit: PROMPT_RESULTS_ROW_LIMIT,
-            ...filterOpts,
-          }),
-          getCompetitorComparison(brand.id, filterOpts),
-          getShareOfVoiceData(brand.id, filterOpts),
-          hasFilters
-            ? getPromptResults(brand.id, { limit: 1 }).then(({ total }) => ({ total }))
-            : Promise.resolve(null),
-        ];
-
-        const [summaryData, resultsData, compData, sovResult, unfilteredCheck] =
-          await Promise.all(promises);
-        setSummary(summaryData);
-        setResults(resultsData.results);
-        setTotalResults(resultsData.total);
-        setCompetitorData(compData.brands.length > 1 ? compData : null);
-        setSovData(sovResult.byPlatform.length > 0 ? sovResult : null);
-
-        if (unfilteredCheck !== null) {
-          setHasAnyData(unfilteredCheck.total > 0);
-        } else {
-          setHasAnyData(resultsData.total > 0);
-        }
+        // One consolidated server action (#313): summary + results + competitor
+        // + SoV run in a real server-side Promise.all (one round trip instead
+        // of five serialized POSTs), and "has any data" comes from a cheap
+        // count instead of an unbounded full-table scan.
+        const insights = await getInsightsData(brand.id, {
+          ...filterOpts,
+          rowLimit: PROMPT_RESULTS_ROW_LIMIT,
+          checkUnfiltered: hasFilters,
+        });
+        setSummary(insights.summary);
+        setResults(insights.results);
+        setTotalResults(insights.total);
+        setCompetitorData(insights.competitors.brands.length > 1 ? insights.competitors : null);
+        setSovData(insights.sov.byPlatform.length > 0 ? insights.sov : null);
+        setHasAnyData(insights.hasAnyData);
 
         const regions = [
-          ...new Set(resultsData.results.map((r) => r.region).filter(Boolean) as string[]),
+          ...new Set(insights.results.map((r) => r.region).filter(Boolean) as string[]),
         ].sort();
         // Group raw model slugs by their resolved display name so different
         // ChatGPT versions ("gpt-5-3-mini" + "gpt-5-5") collapse into one
         // "ChatGPT" filter option. Stored as `slugA,slugB` so the server can
         // filter the whole family with .in() via applyModelFilter().
         const slugToLabel = new Map<string, string>();
-        for (const r of resultsData.results) {
+        for (const r of insights.results) {
           const slug = r.modelUsed;
           if (!slug || slugToLabel.has(slug)) continue;
           const label =

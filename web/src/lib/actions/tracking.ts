@@ -192,15 +192,20 @@ async function buildResultsQuery(
     promptId?: string;
     topicId?: string;
   },
+  selectOpts?: { count?: 'exact' },
 ) {
   const supabase = await createClient();
   // #155 — Insights aggregates exclude `chatgpt-shopping`. That model's
   // visibility numbers aren't comparable to a normal ChatGPT answer and
   // would skew brand-level visibility/mentions/citations. Shopping data
   // is consumed by /dashboard/shopping only.
-  let query = supabase
-    .from('prompt_results')
-    .select('*')
+  //
+  // `count: 'exact'` (opt-in) makes the query return the full match count
+  // alongside a `.range()` page, so getPromptResults gets an accurate total
+  // without materializing every row. Export leaves it off (it paginates and
+  // doesn't need a per-page count).
+  const base = supabase.from('prompt_results');
+  let query = (selectOpts?.count ? base.select('*', { count: selectOpts.count }) : base.select('*'))
     .eq('brand_id', brandId)
     .neq('platform', 'chatgpt-shopping');
 
@@ -245,14 +250,23 @@ export async function getPromptResults(
     topicId?: string;
   },
 ): Promise<{ results: PromptResultWithText[]; total: number }> {
-  const { supabase, query } = await buildResultsQuery(brandId, opts);
+  const limit = opts?.limit ?? 50;
+  const offset = opts?.offset ?? 0;
 
-  const { data: allRows, error } = await query.order('created_at', {
-    ascending: false,
-  });
+  const { supabase, query } = await buildResultsQuery(brandId, opts, { count: 'exact' });
+
+  // One round trip: fetch only the requested page via SQL `.range()` and read
+  // the full match count from the same query, instead of materializing every
+  // matching row (all heavy columns) into Node and slicing/counting in JS.
+  const {
+    data: pageRows,
+    count,
+    error,
+  } = await query.order('created_at', { ascending: false }).range(offset, offset + limit - 1);
   if (error) throw new Error(error.message);
 
-  const rows = (allRows ?? []) as Record<string, unknown>[];
+  const rows = (pageRows ?? []) as Record<string, unknown>[];
+  const total = count ?? rows.length;
 
   const promptIds = [...new Set(rows.map((r) => r.prompt_id as string))];
   const { data: promptRows } =
@@ -284,11 +298,9 @@ export async function getPromptResults(
     ]),
   );
 
-  const limit = opts?.limit ?? 50;
-  const offset = opts?.offset ?? 0;
-  const paged = rows.slice(offset, offset + limit);
-
-  const results = paged.map((r) => {
+  // `rows` is already the requested page (SQL `.range()` above), so map it
+  // directly — no JS slicing.
+  const results = rows.map((r) => {
     const pm = promptMap.get(r.prompt_id as string);
     return {
       ...mapResultRow(r),
@@ -301,7 +313,78 @@ export async function getPromptResults(
     };
   });
 
-  return { results, total: rows.length };
+  return { results, total };
+}
+
+/** Cheap existence check for a brand's (non-shopping) prompt_results — counts, no rows. */
+async function getBrandResultsTotal(brandId: string): Promise<number> {
+  const supabase = await createClient();
+  const { count } = await supabase
+    .from('prompt_results')
+    .select('*', { count: 'exact', head: true })
+    .eq('brand_id', brandId)
+    .neq('platform', 'chatgpt-shopping');
+  return count ?? 0;
+}
+
+export interface InsightsData {
+  summary: InsightsSummary;
+  results: PromptResultWithText[];
+  total: number;
+  competitors: CompetitorComparisonData;
+  sov: ShareOfVoiceData;
+  hasAnyData: boolean;
+}
+
+/**
+ * One consolidated server action for the Insights page's first load (#313).
+ *
+ * Next.js runs server actions sequentially (each is its own queued POST), so
+ * firing the summary / results / competitor / SoV reads separately from the
+ * client cost roughly their sum, not the slowest. This runs them in a real
+ * server-side `Promise.all` (genuinely parallel, one round trip), and derives
+ * "has any data" from a cheap count instead of the old unbounded full-table
+ * scan. Output is identical to the previous per-call flow.
+ */
+export async function getInsightsData(
+  brandId: string,
+  opts: {
+    model?: string;
+    region?: string;
+    topicId?: string;
+    dateFrom?: string;
+    dateTo?: string;
+    rowLimit?: number;
+    /** When the current view is filtered, check unfiltered data existence too. */
+    checkUnfiltered?: boolean;
+  },
+): Promise<InsightsData> {
+  const filterOpts = {
+    model: opts.model,
+    region: opts.region,
+    topicId: opts.topicId,
+    dateFrom: opts.dateFrom,
+    dateTo: opts.dateTo,
+  };
+
+  const [summary, resultsData, competitors, sov, unfilteredTotal] = await Promise.all([
+    getInsightsSummary(brandId, filterOpts),
+    getPromptResults(brandId, { limit: opts.rowLimit ?? 50, ...filterOpts }),
+    getCompetitorComparison(brandId, filterOpts),
+    getShareOfVoiceData(brandId, filterOpts),
+    opts.checkUnfiltered ? getBrandResultsTotal(brandId) : Promise.resolve(null),
+  ]);
+
+  const hasAnyData = unfilteredTotal !== null ? unfilteredTotal > 0 : resultsData.total > 0;
+
+  return {
+    summary,
+    results: resultsData.results,
+    total: resultsData.total,
+    competitors,
+    sov,
+    hasAnyData,
+  };
 }
 
 /**
