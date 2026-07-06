@@ -26,6 +26,7 @@ import {
   Lightbulb,
   Zap,
   Send,
+  Check,
   BarChart3,
   Search,
   Loader2,
@@ -300,6 +301,26 @@ export default function ContentPage() {
     }
   };
 
+  const handleBulkDone = async () => {
+    setBulkSending(true);
+
+    try {
+      const ids = Array.from(selectedIds);
+
+      const result = await bulkUpdateStatus(ids, 'done');
+
+      toast.success(`Marked ${result.updated} opportunities as done`);
+
+      setSelectedIds(new Set());
+
+      await loadData();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Bulk update failed');
+    } finally {
+      setBulkSending(false);
+    }
+  };
+
   const handleBulkDismiss = async () => {
     setBulkSending(true);
     try {
@@ -504,6 +525,18 @@ export default function ContentPage() {
                     )}
                     {t('bulk.sendAll')}
                   </Button>
+
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-7 text-xs gap-1.5"
+                    onClick={handleBulkDone}
+                    disabled={bulkSending}
+                  >
+                    <Check className="h-3 w-3" />
+                    Done
+                  </Button>
+
                   <Button
                     variant="outline"
                     size="sm"
