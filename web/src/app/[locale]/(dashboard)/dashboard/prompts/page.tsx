@@ -619,7 +619,7 @@ export default function PromptsPage() {
 
         {/* ─── Query Fan-out tab ───────────────────────────────────────── */}
         <TabsContent value="fanout" className="mt-4">
-          {activeBrandId && <QueryFanoutTab brandId={activeBrandId} />}
+          {activeBrandId && <QueryFanoutTab brandId={activeBrandId} onTracked={loadData} />}
         </TabsContent>
 
         {/* ─── Insights tab ────────────────────────────────────────────── */}
@@ -825,12 +825,7 @@ export default function PromptsPage() {
                     <TableHeader>
                       <TableRow>
                         <TableHead className="pl-6">Prompt</TableHead>
-                        <ColHead
-                          className="text-center"
-                          tooltip="Number of keywords extracted from this prompt by AI analysis."
-                        >
-                          Keywords
-                        </ColHead>
+
                         <ColHead
                           className="text-right"
                           tooltip="Total monthly Google search volume across all extracted keywords."
@@ -849,12 +844,6 @@ export default function PromptsPage() {
                         >
                           Intent
                         </ColHead>
-                        <ColHead
-                          className="text-right pr-6"
-                          tooltip="The AI adoption multiplier applied to Google volume."
-                        >
-                          Multiplier
-                        </ColHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -863,9 +852,7 @@ export default function PromptsPage() {
                           <TableCell className="pl-6 font-medium text-sm max-w-[280px]">
                             <span className="line-clamp-1">{row.promptText}</span>
                           </TableCell>
-                          <TableCell className="text-center text-xs text-muted-foreground tabular-nums">
-                            {row.keywords.length}
-                          </TableCell>
+
                           <TableCell className="text-right tabular-nums text-sm text-muted-foreground">
                             {row.totalGoogleVolume.toLocaleString()}
                           </TableCell>
@@ -882,9 +869,6 @@ export default function PromptsPage() {
                             >
                               {INTENT_LABELS[row.intent] || row.intent}
                             </Badge>
-                          </TableCell>
-                          <TableCell className="text-right pr-6 text-xs text-muted-foreground tabular-nums">
-                            ×{row.aiVolumeMultiplier}
                           </TableCell>
                         </TableRow>
                       ))}
