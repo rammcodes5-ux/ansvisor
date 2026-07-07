@@ -1,7 +1,7 @@
 {
-  "name": "@ansvisor/ansvisor-server",
+  "name": "@optumus/optumus-server",
   "version": "0.1.5",
-  "description": "Ansvisor - AI Engine Optimization Server",
+  "description": "Optumus Analytics server",
   "main": "src/server.js",
   "type": "module",
   "repository": {

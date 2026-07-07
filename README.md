@@ -12,11 +12,11 @@
 
 </div>
 
-# Ansvisor - Open-source AI Visibility Platform for AI Search
+# Optumus Analytics - Growth Intelligence for Modern Teams
 
-The search landscape is transforming fast. Buyers are moving from traditional search engines to AI platforms like ChatGPT, Claude, Gemini, Google AI Mode, etc.
+The search landscape is transforming fast. Buyers are moving from traditional search engines to AI platforms like ChatGPT, Claude, Gemini, Google AI Mode, and Perplexity.
 
-At Ansvisor, we are building the open future of AI Visibility and AI Search Optimization (AEO/GEO) to help brands claim their spot in AI-generated answers.
+Optumus Analytics brings SEO, analytics, and growth operations into one command center so modern teams can monitor visibility, optimize content, and activate growth workflows with confidence.
 
 What excites us most about Ansvisor is our commitment to a build-in-public and transparent approach.
 

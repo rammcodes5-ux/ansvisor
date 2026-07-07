@@ -42,7 +42,7 @@ export async function proxy(request: NextRequest) {
   // not the app subdomain — redirect any stale links / bookmarks so they
   // land on the canonical page instead of 404'ing (#113).
   if (pathnameWithoutLocale === '/pricing') {
-    return NextResponse.redirect('https://ansvisor.com/pricing', 302);
+    return NextResponse.redirect('https://optumusanalytics.com/pricing', 302);
   }
 
   if (isProtected(pathnameWithoutLocale) && !user) {

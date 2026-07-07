@@ -5,7 +5,7 @@ export function MarketingFooter() {
     <footer className="border-t py-8">
       <div className="container flex flex-col items-center justify-between gap-4 md:flex-row">
         <p className="text-sm text-muted-foreground">
-          &copy; {new Date().getFullYear()} {siteConfig.name}. Open source under{' '}
+          &copy; {new Date().getFullYear()} {siteConfig.name}. Built for ambitious growth teams. Open source under{' '}
           <a
             href="https://github.com/ansvisor/ansvisor/blob/main/LICENSE"
             target="_blank"

@@ -17,8 +17,8 @@ import { BillingSection } from '@/components/settings/billing-section';
 import { TeamSection } from '@/components/settings/team-section';
 import { ApiKeysSection } from '@/components/settings/api-keys-section';
 import { AgentSection } from '@/components/settings/agent-section';
-
-type Section = 'account' | 'theme' | 'project' | 'team' | 'api-keys' | 'agent' | 'billing';
+import { GrowthSection } from '@/components/settings/growth-section';
+import { resolveSettingsSection, type SettingsSection } from '@/config/dashboard';
 
 export default function SettingsPage() {
   const t = useTranslations('settings');
@@ -27,11 +27,7 @@ export default function SettingsPage() {
   const { isCloud } = usePlanContext();
   const searchParams = useSearchParams();
   const tabParam = searchParams.get('tab');
-  const [active, setActive] = useState<Section>(() => {
-    if (tabParam === 'billing' && isCloud) return 'billing';
-    if (tabParam === 'agent' && isCloud) return 'agent';
-    return 'account';
-  });
+  const [active, setActive] = useState<SettingsSection>(() => resolveSettingsSection(tabParam, isCloud));
   const [displayName, setDisplayName] = useState('');
   const [email, setEmail] = useState('');
 
@@ -50,7 +46,11 @@ export default function SettingsPage() {
     router.refresh();
   }
 
-  const navItems: { id: Section; label: string }[] = [
+  useEffect(() => {
+    setActive(resolveSettingsSection(tabParam, isCloud));
+  }, [tabParam, isCloud]);
+
+  const navItems: { id: SettingsSection; label: string }[] = [
     { id: 'account', label: t('account') },
     { id: 'theme', label: t('theme') },
     { id: 'project', label: t('project') },
@@ -58,8 +58,9 @@ export default function SettingsPage() {
     { id: 'api-keys', label: 'API Keys' },
     // Agent BYOK is a cloud-only concern — self-host operators configure
     // ANTHROPIC_API_KEY in their own env, no UI needed.
-    ...(isCloud ? [{ id: 'agent' as Section, label: 'Agent' }] : []),
-    ...(isCloud ? [{ id: 'billing' as Section, label: t('billing') }] : []),
+    ...(isCloud ? [{ id: 'agent' as SettingsSection, label: 'Agent' }] : []),
+    ...(isCloud ? [{ id: 'growth' as SettingsSection, label: 'Growth & SEO' }] : []),
+    ...(isCloud ? [{ id: 'billing' as SettingsSection, label: t('billing') }] : []),
   ];
 
   return (
@@ -177,6 +178,9 @@ export default function SettingsPage() {
 
           {/* Agent (cloud BYOK) */}
           {active === 'agent' && isCloud && <AgentSection />}
+
+          {/* Growth & SEO */}
+          {active === 'growth' && isCloud && <GrowthSection />}
 
           {/* Billing */}
           {active === 'billing' && isCloud && <BillingSection />}

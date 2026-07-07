@@ -38,6 +38,15 @@ export interface NavGroup {
   items: NavItem[];
 }
 
+export type SettingsSection = 'account' | 'theme' | 'project' | 'team' | 'api-keys' | 'agent' | 'billing' | 'growth';
+
+export function resolveSettingsSection(tabParam: string | null, isCloud: boolean): SettingsSection {
+  if (tabParam === 'billing' && isCloud) return 'billing';
+  if (tabParam === 'agent' && isCloud) return 'agent';
+  if (tabParam === 'growth' && isCloud) return 'growth';
+  return 'account';
+}
+
 export const dashboardNav: NavGroup[] = [
   {
     items: [
@@ -89,6 +98,12 @@ export const dashboardNav: NavGroup[] = [
         title: 'AI Traffic Analytics',
         href: '/dashboard/traffic',
         icon: LineChart,
+        requiredFeature: 'advanced_analytics',
+      },
+      {
+        title: 'Growth Studio',
+        href: '/dashboard/growth',
+        icon: Sparkles,
         requiredFeature: 'advanced_analytics',
       },
       {

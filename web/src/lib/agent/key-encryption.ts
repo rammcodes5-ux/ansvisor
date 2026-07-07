@@ -29,16 +29,16 @@ interface Envelope {
 }
 
 function loadMasterKey(): Buffer {
-  const raw = process.env.ANSVISOR_ENCRYPTION_KEY;
+  const raw = process.env.OPTUMUS_ENCRYPTION_KEY || process.env.ANSVISOR_ENCRYPTION_KEY;
   if (!raw) {
     throw new Error(
-      'ANSVISOR_ENCRYPTION_KEY is not set. Generate one with `openssl rand -base64 32` and add it to web/.env.',
+      'OPTUMUS_ENCRYPTION_KEY is not set. Generate one with `openssl rand -base64 32` and add it to web/.env.',
     );
   }
   const key = Buffer.from(raw, 'base64');
   if (key.length !== KEY_BYTES) {
     throw new Error(
-      `ANSVISOR_ENCRYPTION_KEY must decode to ${KEY_BYTES} bytes (got ${key.length}). Use \`openssl rand -base64 32\`.`,
+      `OPTUMUS_ENCRYPTION_KEY must decode to ${KEY_BYTES} bytes (got ${key.length}). Use \`openssl rand -base64 32\`.`,
     );
   }
   return key;
@@ -101,4 +101,12 @@ export function decryptApiKey(envelopeJson: string | null | undefined): string |
  */
 export function last4(plaintext: string): string {
   return plaintext.slice(-4);
+}
+
+export function encryptSecret(plaintext: string): string {
+  return encryptApiKey(plaintext);
+}
+
+export function decryptSecret(envelopeJson: string | null | undefined): string | null {
+  return decryptApiKey(envelopeJson);
 }
